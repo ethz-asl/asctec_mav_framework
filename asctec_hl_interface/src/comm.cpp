@@ -55,7 +55,7 @@ bool Comm::connect(SerialPortPtr & serial_port, const std::string & port, uint32
     serial_port.reset(new SerialPort(uart_service_));
     serial_port->open(port);
 
-    if(!configurePort(serial_port, baudrate))
+    if(!configurePort(serial_port, &baudrate))
       return false;
 
     ROS_INFO_STREAM("INFO: opened serial port " << port << " with baudrate " << baudrate);
@@ -90,19 +90,31 @@ bool Comm::connect(const std::string & port_rx, const std::string & port_tx, uin
   if (!success)
     return false;
 
-  // write packet that configures autobaud
-  char buf[] = {'a', 'A'};
-  boost::asio::write(*port_tx_, boost::asio::buffer(buf, 2));
+  // write packet that configures autobaud. LSB needs to be 1, LSB+1 needs to be 0
+  char buf = 'a';
+  boost::asio::write(*port_tx_, boost::asio::buffer(&buf, 1));
 
   // run uart worker threads
   rxReadStart(1, 1000);
   uart_thread_[0] = boost::thread(boost::bind(&boost::asio::io_service::run, &uart_service_));
   uart_thread_[1] = boost::thread(boost::bind(&boost::asio::io_service::run, &uart_service_));
 
-  return true;
+  // this doesn't do anything on the HLP right now, just a dummy package to check successful connection
+  HLI_BAUDRATE dummy;
+  ROS_INFO("configured serial port(s), checking connection ... ");
+  for (int i = 0; i < 5; i++)
+  {
+    if (sendPacketAck(HLI_PACKET_ID_BAUDRATE, dummy, 0.5))
+    {
+      ROS_INFO("ok");
+      return true;
+    }
+  }
+  ROS_ERROR("failed");
+  return false;
 }
 
-bool Comm::configurePort(SerialPortPtr & serial_port, uint32_t baudrate)
+bool Comm::configurePort(SerialPortPtr & serial_port, uint32_t * baudrate)
 {
   int32_t baudrates[] = {9600, 14400, 19200, 38400, 57600, 115200, 230400, 460800, 921600};
   uint32_t best_baudrate = 57600;
@@ -110,7 +122,7 @@ bool Comm::configurePort(SerialPortPtr & serial_port, uint32_t baudrate)
 
   for (uint32_t i = 0; i < sizeof(baudrates) / sizeof(uint32_t); i++)
   {
-    uint32_t diff = abs(baudrates[i] - baudrate);
+    uint32_t diff = abs(baudrates[i] - *baudrate);
     if (diff < min_diff)
     {
       min_diff = diff;
@@ -118,8 +130,10 @@ bool Comm::configurePort(SerialPortPtr & serial_port, uint32_t baudrate)
     }
   }
 
-  if (best_baudrate != baudrate)
+  if (best_baudrate != *baudrate)
     ROS_WARN("Unsupported baudrate, choosing closest supported baudrate (%d)", best_baudrate);
+
+  *baudrate = best_baudrate;
 
   try
   {
@@ -305,7 +319,7 @@ void Comm::processPacketAck(uint8_t * buf, uint32_t length)
   HLI_ACK *packet_ack = (HLI_ACK*)buf;
   boost::mutex::scoped_lock lock(tx_mutex_);
   packet_acks_.push_back(packet_ack->ack_packet);
-  ROS_INFO("packet ack %d", packet_ack->ack_packet);
+//  ROS_INFO("packet ack %d", packet_ack->ack_packet);
 }
 
 bool Comm::waitForPacketAck(uint8_t ack_id, const double & timeout)

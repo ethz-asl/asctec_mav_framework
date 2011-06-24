@@ -53,10 +53,6 @@ int main(int argc, char ** argv)
 
   ros::Publisher pub;
 
-  //	if(argc != 3){
-  //		ROS_FATAL("wrong number of arguments");
-  //	}
-
   if (argc == 1)
   {
     ROS_ERROR("Wrong number of arguments!!!");
@@ -64,7 +60,6 @@ int main(int argc, char ** argv)
     return -1;
   }
 
-  // very dirty ;-)
   std::string command = std::string(argv[1]);
 
   if (command == "motors")
@@ -79,7 +74,7 @@ int main(int argc, char ** argv)
     asctec_hl_comm::mav_ctrl_motors::Request req;
     asctec_hl_comm::mav_ctrl_motors::Response res;
     req.startMotors = atoi(argv[2]);
-    ros::service::call("start_motors", req, res);
+    ros::service::call("fcu/motor_control", req, res);
     std::cout << "motors running: " << (int)res.motorsRunning << std::endl;
   }
   else if (command == "ctrl")

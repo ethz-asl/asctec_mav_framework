@@ -92,7 +92,7 @@ private:
   void rxReadStart(uint32_t length, uint32_t timeout = 0);
   void rxReadCallback(const boost::system::error_code& error, size_t bytes_transferred);
   void rxTimeoutCallback(const boost::system::error_code & error);
-  bool configurePort(SerialPortPtr & serial_port, uint32_t baudrate);
+  bool configurePort(SerialPortPtr & serial_port, uint32_t *baudrate);
   bool connect(SerialPortPtr & serial_port, const std::string & port, uint32_t baudrate);
 
   void processPacketAck(uint8_t * buf, uint32_t length);
@@ -110,14 +110,16 @@ public:
 //  Comm(const std::string & port, uint32_t baudrate);
   ~Comm();
 
-  /// connects to the specified serial port(s) with the given baudrate
+  /// connects to the specified serial port(s) with the given baudrate. The HLP sets it's baudrate automatically.
   /**
    * The port names can be equal, then it connects only to one serial port (most common operation).
    * It can also connect to different ports for rx and tx. This is useful when e.g. two wireless modules (one for rx, one for tx) such as XBee are used to connect
-   * to the helicopter and bandwidth of one link is to low. rx/tx is seen from the host computer running the communication node.
+   * to the helicopter and bandwidth of one link is to low. rx/tx is seen from the host computer running the communication node. Any baudrate can be set. If it doesn't
+   * match a standard baudrate, the closest standard baudrate is chosen. If the HLP doesn't "hear" anything from the node for ~10s, it will go into autobaud mode. During connection
+   * setup, the node sends 'a' to the HLP, which will then configure its baudrate automatically.
    * @param port_rx port to use for rx
    * @param port_tx port to use for tx
-   * @param baudrate baudrate to connect with. equal for both ports.
+   * @param baudrate baudrate to connect with. equal for both ports. The baudrate finally chosen is written to baudrate.
    * @return connection successful
    */
   bool connect(const std::string & port_rx, const std::string & port_tx, uint32_t baudrate);

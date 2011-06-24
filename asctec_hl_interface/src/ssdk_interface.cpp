@@ -141,8 +141,9 @@ void SSDKInterface::cbSSDKConfig(asctec_hl_interface::SSDKConfig & config, uint3
   if (level & asctec_hl_interface::SSDK_SEND_PARAMETERS)
   {
     if(!sendParameters(config)){
-      config = config_;
-      ROS_WARN("could not set parameters!");
+      // TODO: not sure if this is maybe too harsh, but we would be in a somewhat undefined state
+      ROS_FATAL("Could not send SSDK parameters to the HLP! Shutting down the node");
+      ros::shutdown();
     }
     config.send = false;
   }
@@ -166,8 +167,9 @@ void SSDKInterface::cbSSDKConfig(asctec_hl_interface::SSDKConfig & config, uint3
 
 void SSDKInterface::cbState(const asctec_hl_comm::mav_stateConstPtr & msg)
 {
+  // TODO: untested, use that with care !!!
 
-  //receive state (position, yaw, velocity) and directly pass it to the HL position controller by bypassing the
+  // receive state (position, yaw, velocity) and directly pass it to the HL position controller by bypassing the
   // state observer on the HL
 
   HLI_EXT_POSITION state;
@@ -340,66 +342,13 @@ bool SSDKInterface::sendParameters(const asctec_hl_interface::SSDKConfig & confi
   params.p49 = helper::param2Fixpoint(config.p49);
   params.p50 = helper::param2Fixpoint(config.p50);
 
-//  std::cout<<"params test"<<
-//      config.p1 <<std::endl<<
-//      config.p2 <<std::endl<<
-//      config.p3 <<std::endl<<
-//      config.p4 <<std::endl<<
-//      config.p5 <<std::endl<<
-//      config.p6 <<std::endl<<
-//      config.p7 <<std::endl<<
-//      config.p8 <<std::endl<<
-//      config.p9 <<std::endl<<
-//      config.p10 <<std::endl<<
-//      config.p12 <<std::endl<<
-//      config.p13 <<std::endl<<
-//      config.p14 <<std::endl<<
-//      config.p15 <<std::endl<<
-//      config.p16 <<std::endl<<
-//      config.p17 <<std::endl<<
-//      config.p18 <<std::endl<<
-//      config.p19 <<std::endl<<
-//      config.p20 <<std::endl<<
-//      config.p21 <<std::endl<<
-//      config.p22 <<std::endl<<
-//      config.p23 <<std::endl<<
-//      config.p24 <<std::endl<<
-//      config.p25 <<std::endl<<
-//      config.p26 <<std::endl<<
-//      config.p27 <<std::endl<<
-//      config.p28 <<std::endl<<
-//      config.p29 <<std::endl<<
-//      config.p30 <<std::endl<<
-//      config.p31 <<std::endl<<
-//      config.p32 <<std::endl<<
-//      config.p33 <<std::endl<<
-//      config.p34 <<std::endl<<
-//      config.p35 <<std::endl<<
-//      config.p36 <<std::endl<<
-//      config.p37 <<std::endl<<
-//      config.p38 <<std::endl<<
-//      config.p39 <<std::endl<<
-//      config.p40 <<std::endl<<
-//      config.p41 <<std::endl<<
-//      config.p42 <<std::endl<<
-//      config.p43 <<std::endl<<
-//      config.p44 <<std::endl<<
-//      config.p45 <<std::endl<<
-//      config.p46 <<std::endl<<
-//      config.p47 <<std::endl<<
-//      config.p48 <<std::endl<<
-//      config.p49 <<std::endl<<
-//      config.p50 <<std::endl;
-
-  bool successful = false;
   for(int i=0; i<5; i++){
     if(comm_->sendPacketAck(HLI_PACKET_ID_SSDK_PARAMETERS, params)){
-      successful = true;
-      break;
+      ROS_INFO("sent SSDK parameters");
+      return true;
     }
   }
-  ROS_INFO_COND(successful, "sent parameters");
-  ROS_ERROR_COND(!successful, "sending parameters failed, tried 5 times");
 
-  return successful;
+  ROS_ERROR("sending SSDK parameters failed, tried 5 times");
+  return false;
 }

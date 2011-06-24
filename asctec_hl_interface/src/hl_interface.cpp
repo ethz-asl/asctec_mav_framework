@@ -52,7 +52,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
 
   control_sub_ = nh_.subscribe("control", 1, &HLInterface::controlCmdCallback, this);
 
-  motor_srv_ = nh_.advertiseService("motor_ctrl", &HLInterface::cbMotors, this);
+  motor_srv_ = nh_.advertiseService("motor_control", &HLInterface::cbMotors, this);
 
   config_ = asctec_hl_interface::HLInterfaceConfig::__getDefault__();
 
@@ -326,6 +326,7 @@ void HLInterface::diagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
   unsigned char summary_level = diagnostic_msgs::DiagnosticStatus::OK;
   std::string summary_message = "OK";
 
+  // TODO: are these thresholds ok?
   if (status_.battery_voltage < 10.4)
   {
     summary_level = diagnostic_msgs::DiagnosticStatus::WARN;
@@ -359,13 +360,13 @@ void HLInterface::diagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
 
 void HLInterface::processTimeSyncData(uint8_t * buf, uint32_t bufLength)
 {
-  static bool syncedOnce = false;
+  static bool synced_once = false;
   HLI_TIMESYNC data = *(HLI_TIMESYNC*)buf;
 
-  if (!syncedOnce)
+  if (!synced_once)
   {
     data.ts1 = 1e12; // cause a huge offset to force AP to sync
-    syncedOnce = true;
+    synced_once = true;
     ROS_INFO_STREAM("forced imu to sync");
   }
   else
@@ -375,15 +376,13 @@ void HLInterface::processTimeSyncData(uint8_t * buf, uint32_t bufLength)
 
   comm_->sendPacket(HLI_PACKET_ID_TIMESYNC, data);
 
-  double timeDiff = (data.ts1 - data.tc1) / 1.0e6;
-  if (timeDiff > 0.01)
-    ROS_WARN_STREAM("imu time "<<ros::Time(data.tc1/1.0e6)<<"  local time "<<ros::Time(data.ts1/1.0e6)<<" diff "<< ros::Time(timeDiff));
+  // warn if imu time is too far away from pc time. At low baudrates, the IMU will take longer to sync.
+  ROS_WARN_STREAM_COND(std::abs(status_.timesync_offset) > 0.002, "imu time is off by "<<status_.timesync_offset * 1e3 <<" ms");
 }
 
 bool HLInterface::cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req,
                            asctec_hl_comm::mav_ctrl_motors::Response &resp)
 {
-
   HLI_MOTORS data;
 
   if (req.startMotors)
@@ -397,17 +396,40 @@ bool HLInterface::cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req,
     ROS_INFO("request to stop motors");
   }
 
-  // TODO: do this until we have feedback from the IMU, not yet implemented in the custom package
-  for (int i = 0; i < 100; i++)
+  // make sure packet arrives
+  bool success = false;
+  for (int i = 0; i < 5; i++)
   {
-    bool ret = comm_->sendPacket(HLI_PACKET_ID_MOTORS, data);
-    if (!ret)
-      ROS_WARN("sending %d to motors... wtf?!", req.startMotors);
+    success = comm_->sendPacketAck(HLI_PACKET_ID_MOTORS, data, 0.5);
+    if (success)
+      break;
   }
 
-  // TODO: check/set this accordingly !!!
-  resp.motorsRunning = req.startMotors;
-  return true;
+  if(!success)
+  {
+    ROS_WARN("unable to send motor on/off command");
+    resp.motorsRunning = status_.motor_status == "running";
+    return false;
+  }
+
+  ros::Duration d(0.1);
+  for (int i = 0; i < 10; i++)
+  {
+    if (req.startMotors && status_.motor_status == "running")
+    {
+      resp.motorsRunning = true;
+      return true;
+    }
+    else if (!req.startMotors && status_.motor_status == "off")
+    {
+      resp.motorsRunning = false;
+      return true;
+    }
+    d.sleep();
+  }
+
+  ROS_WARN("switching motors %s timed out", req.startMotors?"on":"off");
+  return false;
 }
 
 void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & msg)
@@ -422,7 +444,7 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
       validCommand = true;
     }
     else
-      ROS_WARN_STREAM(
+      ROS_WARN_STREAM_THROTTLE(2,
           "GPS/Highlevel position control must be turned off. "
           "Set \"position_control\" parameter to \"off\"");
   }
@@ -442,7 +464,7 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
     }
     else
     {
-      ROS_WARN_STREAM(
+      ROS_WARN_STREAM_THROTTLE(2,
           "Higlevel or Lowlevel processor position control has not "
           "been chosen. Set \"position_control\" parameter to "
           "\"HighLevel\" or \"GPS\" ! sending nothing to mav !");
@@ -451,26 +473,26 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
   }
   else if (msg->type == asctec_hl_comm::mav_ctrl::position)
   {
-    if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL)
+    if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL &&
+        config_.state_estimation != asctec_hl_interface::HLInterface_STATE_EST_OFF)
     {
       sendPosCommandHL(msg);
       validCommand = true;
     }
     else
     {
-      ROS_WARN_STREAM(
-          "Higlevel or Lowlevel processor position control has not "
-          "been chosen. Set \"position_control\" parameter to "
-          "\"HighLevel\" or \"GPS\" ! sending nothing to mav !");
+      ROS_WARN_STREAM_THROTTLE(2,
+          "Higlevel processor position control was not chosen and/or no state "
+          "estimation was selected. Set the \"position_control\" parameter to "
+          "\"HighLevel\" and the \"state_estimation\" parameter to anything but \"off\"! sending nothing to mav !");
     }
   }
 
   // was the controlmode specified properly?
   if (!validCommand)
   {
-    ROS_WARN_STREAM("Control type was not specified ... not sending anything to the mav");
+    ROS_WARN_STREAM_THROTTLE(2,"Control type was not specified ... not sending anything to the mav");
   }
-
 }
 
 void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
@@ -480,14 +502,17 @@ void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
   // spin-directions positive according to right hand rule around axis
   ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg->x * 180.0 / M_PI * 1000.0 / (float)k_stick_)); // cmd=real_angle*1000/K_stick
   ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg->y * 180.0 / M_PI * 1000.0 / (float)k_stick_)); // dito
-  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg->yaw * 180.0 / M_PI * 1000.0 / (float)k_stick_yaw_)); // cmd=real_anglular_velocity*1000/k_stick_yaw
+
+  // cmd=real_anglular_velocity*1000/k_stick_yaw,
+  // cmd is limited to +- 1700 such that it's not possible to switch the motors with a bad command
+  ctrlLL.yaw = helper::clamp<short>(-1700, 1700, (short)(msg->yaw * 180.0 / M_PI * 1000.0 / (float)k_stick_yaw_));
 
   // catch wrong thrust command ;-)
   if (msg->z > 1.0)
   {
     ROS_ERROR(
         "I just prevented you from giving full thrust..."
-        "\nplease set the input range correct!!! [0 ... 1.0] ");
+        "\nset the input range correct!!! [0 ... 1.0] ");
     return;
   }
   else
@@ -495,7 +520,7 @@ void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
     ctrlLL.z = helper::clamp<short>(0, 4096, (short)(msg->z * 4096.0));
   }
 
-  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
+//  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_LL, ctrlLL);
 }
 
@@ -508,7 +533,7 @@ void HLInterface::sendVelCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
   ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg->yaw / config_.max_velocity_yaw* 2047.0));
   ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg->z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
 
-  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
+//  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_LL, ctrlLL);
 }
 
