@@ -1,0 +1,20 @@
+#goal
+Header header
+geometry_msgs/Point32   goal_pos
+float32                 goal_yaw
+geometry_msgs/Point32   max_speed
+float32 				accuracy_position        # determines the radius around the goal within the goal is considered as reached
+float32                 accuracy_orientation     # determines the range within the goal orientation is considered as reached, for the heli only yaw
+float32                 timeout                  # timeout in [s] after which flying to the waypoint stops
+---
+#result
+Header header
+geometry_msgs/Point32   result_pos
+float32                 result_yaw
+string                  status
+---
+#feedback
+Header header
+geometry_msgs/Point32   current_pos
+float32                 current_yaw
+string                  status

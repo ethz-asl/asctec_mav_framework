@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo " ### plotting position estimated by the luenberger oberserver x, y, z [m] in NED coordinates !!! ###"
+rxplot $1/fcu/debug/data[13]:data[14]:data[15] -b 10

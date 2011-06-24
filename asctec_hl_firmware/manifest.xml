@@ -1,0 +1,13 @@
+<package>
+  <description brief="asctec_highlevel firmware">
+
+     Firmware code for the Asctec Autopilot HighLevel controller 
+
+  </description>
+  <author>Markus Achtelik, Michael Achtelik, Stephan Weiss, Laurent Kneip</author>
+  <license></license>
+  <review status="unreviewed"  notes="This is unstable and under active development"/>
+  <url>http://ros.org/wiki/asctec_highlevel</url>
+</package>
+
+

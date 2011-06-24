@@ -1,0 +1,20 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+This package provides a driver for the Ascending Technologies helicopters (Hummingbird and Pelican quadrotors) equipped with an AutoPilot board. It provides access to the HighLevel Processor (HLP) of the AscTec AutoPilot board, where we have extra firmware running. It provides IMU, GPS, RC and status data as ros messages and listens to commands for acceleration, velocity or position.
+For fast position control based on (slow) position estimates (laser, vslam, VO, etc) it performs data fusion with the accelerometers at 1 kHz. A nonlinear position controller is implemented as well, which accepts either waypoint commands and velocity commands.
+
+\section codeapi Code API
+
+Comm: handles communication between the interface node and the HLP.
+
+HLInterface: provides basic access to the HL Processor. It subscribes to position / velocity / accleleration commands, publishes IMU, GPS, RC and status data and synchronizes the HLP time with the host computer.
+
+SSDKInterface: provides access to the Simulink SDK where the data fusion and position controller are implemented.
+
+EKFInterface: used for communicating with parts of a larger EKF framework which are running on the HLP. This is work in progress, do not use it ;-) ! 
+
+WPServer: runs an action server to send the helicopter to waypoints. 
+
+*/
