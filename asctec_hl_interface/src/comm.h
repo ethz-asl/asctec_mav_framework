@@ -54,8 +54,10 @@ typedef boost::shared_ptr<Comm> CommPtr;
 
 /// Handles the communication between host computer and the HighLevel Processor (HLP) of the AscTec Autopilot board.
 /**
- * Can connect to either one or two (e.g. for separate rx/tx wireless links) serial ports. The default baudrate can be changed up to 460800 baud.
- * Messages can be sent with Comm::sendPacket or Comm::sendPacketAck . Messages are received by setting a callback function with Comm::registerCallback for the message id to receive.
+ * Can connect to either one or two (e.g. for separate rx/tx wireless links) serial ports. 
+ * The default baudrate can be changed up to 921600 baud. Messages can be sent with 
+ * Comm::sendPacket or Comm::sendPacketAck . Messages are received by setting a callback function 
+ * with Comm::registerCallback for the message id to receive.
  */
 class Comm
 {

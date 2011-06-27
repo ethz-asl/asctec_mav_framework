@@ -11,6 +11,7 @@
   <url>http://ros.org/wiki/asctec_hl_interface</url>
   <depend package="roscpp"/>
   <depend package="geometry_msgs"/>
+  <depend package="sensor_msgs"/>
   <depend package="tf" />
   <depend package="dynamic_reconfigure"/>
   <depend package="asctec_hl_comm"/>
