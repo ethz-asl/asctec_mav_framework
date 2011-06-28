@@ -42,6 +42,8 @@ SSDKInterface::SSDKInterface(ros::NodeHandle & nh, CommPtr & comm):
   ros::NodeHandle _pnh("~");
   _pnh.param("frame_id", frame_id_, std::string("fcu"));
 
+  ROS_WARN_COND(!pnh_.hasParam("omega_0_xy"), "no ssdk parameters available, position control on the HLP will not work!");
+
   pose_sub_ = nh_.subscribe("pose", 1, &SSDKInterface::cbPose, this);
   state_sub_ = nh_.subscribe("state", 1, &SSDKInterface::cbState, this);
   debug_pub_ = nh_.advertise<asctec_hl_comm::DoubleArrayStamped> ("debug", 1);

@@ -116,8 +116,8 @@ template<typename T>
  */
 inline uint32_t param2Fixpoint(const double & param)
 {
-  return clamp<uint32_t> (param * 32768.0 + 2147483648.0 - 1, 4294967296.0 - 1, 0);
-  //                               2^15         2^31              2^32
+  return clamp<uint32_t> (0, 4294967296.0 - 1, param * 32768.0 + 2147483648.0 - 1);
+  //                            2^32                    2^15         2^31
 }
 
 /// converts a parameter from  fixpoint (fp) representation needed by the SSDK running datafusion and position control to double (d)
