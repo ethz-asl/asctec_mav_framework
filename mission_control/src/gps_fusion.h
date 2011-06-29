@@ -1,0 +1,63 @@
+/*
+ * gps_fusion.h
+ *
+ *  Created on: Jun 22, 2011
+ *      Author: acmarkus
+ */
+
+#ifndef GPS_FUSION_H_
+#define GPS_FUSION_H_
+
+#include <ros/ros.h>
+
+#include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
+
+#include <sensor_msgs/NavSatFix.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <asctec_hl_comm/mav_imu.h>
+
+#include <Eigen/Eigen>
+
+class GpsFusion
+{
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, asctec_hl_comm::mav_imu> GpsImuSyncPolicy;
+private:
+  ros::NodeHandle nh_;
+  ros::Publisher gps_pose_pub_;
+
+  message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_;
+  message_filters::Subscriber<asctec_hl_comm::mav_imu> imu_sub_;
+  message_filters::Synchronizer<GpsImuSyncPolicy> gps_imu_sync_;
+
+  double height_offset_;
+  double last_height_;
+  double height_;
+
+  double init_latitude_;
+  double init_longitude_;
+  double init_altitude_; //< altitude over WGS84 ellipsoid
+
+  bool have_reference_;
+  double ref_latitude_;
+  double ref_longitude_;
+  double ref_altitude_;
+
+  Eigen::Vector3d ecef_ref_point_;
+  Eigen::Quaterniond ecef_ref_orientation_;
+
+  static const double DEG2RAD = M_PI/180.0;
+
+  void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);
+  void initReference(const double & latitude, const double & longitude, const double & altitude);
+  Eigen::Vector3d wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude);
+  Eigen::Vector3d ecefToEnu(const Eigen::Vector3d & ecef);
+  geometry_msgs::Point wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude);
+
+
+public:
+  GpsFusion();
+};
+
+#endif /* GPS_FUSION_H_ */
