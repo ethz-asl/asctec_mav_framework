@@ -14,7 +14,7 @@ double g_alt_ref;
 int g_its;
 
 
-void gpsCb(sensor_msgs::NavSatFixConstPtr & msg){
+void gpsCb(const sensor_msgs::NavSatFixConstPtr & msg){
 
   static int count = 1;
 

@@ -17,7 +17,7 @@ void latlon2xy_dbg(double lat0, double lon0, double lat, double lon, double *X, 
 }
 
 GpsFusion::GpsFusion() :
-  nh_(""), gps_sub_(nh_, "fcu/gps", 1), imu_sub_(nh_, "fcu/imu_custom", 1), gps_imu_sync_(GpsImuSyncPolicy(1),
+  nh_(""), gps_sub_(nh_, "fcu/gps", 1), imu_sub_(nh_, "fcu/imu_custom", 1), gps_imu_sync_(GpsImuSyncPolicy(10),
                                                                                           gps_sub_, imu_sub_),
       height_offset_(0), last_height_(0), height_(0), have_reference_(false), ref_latitude_(0), ref_longitude_(0),
       ref_altitude_(0)
@@ -25,9 +25,9 @@ GpsFusion::GpsFusion() :
   ros::NodeHandle nh;
 
   gps_imu_sync_.registerCallback(boost::bind(&GpsFusion::syncCallback, this, _1, _2));
-  gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
+//  gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
 
-  nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("gps_metric", 1);
+  gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("gps_metric", 1);
 
   if (nh.getParam("/gps_ref_latitude", ref_latitude_))
   {
@@ -47,9 +47,13 @@ void GpsFusion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const a
 
   static bool once = true;
 
+  ros::Time timenow = ros::Time::now();
+  ROS_INFO_STREAM("times: "<<timenow-gps->header.stamp<<"  "<<timenow-imu->header.stamp);
+
   if (gps->status.status != sensor_msgs::NavSatStatus::STATUS_FIX)
   {
-    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
+//    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
+    ROS_WARN_STREAM("No GPS fix");
     return;
   }
 
