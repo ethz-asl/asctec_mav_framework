@@ -17,7 +17,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <asctec_hl_comm/mav_imu.h>
-
+#include <std_srvs/Empty.h>
 #include <Eigen/Eigen>
 
 class GpsFusion
@@ -26,26 +26,21 @@ class GpsFusion
 private:
   ros::NodeHandle nh_;
   ros::Publisher gps_pose_pub_;
+  ros::ServiceServer zero_height_srv_;
 
   message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_;
   message_filters::Subscriber<asctec_hl_comm::mav_imu> imu_sub_;
   message_filters::Synchronizer<GpsImuSyncPolicy> gps_imu_sync_;
 
-  double height_offset_;
-  double last_height_;
-  double height_;
-
-  double init_latitude_;
-  double init_longitude_;
-  double init_altitude_; //< altitude over WGS84 ellipsoid
-
   bool have_reference_;
   double ref_latitude_;
   double ref_longitude_;
   double ref_altitude_;
-
   Eigen::Vector3d ecef_ref_point_;
   Eigen::Quaterniond ecef_ref_orientation_;
+
+  double height_offset_;
+  bool set_height_zero_;
 
   static const double DEG2RAD = M_PI/180.0;
 
@@ -54,6 +49,7 @@ private:
   Eigen::Vector3d wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d ecefToEnu(const Eigen::Vector3d & ecef);
   geometry_msgs::Point wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude);
+  bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
 
 
 public:

@@ -19,15 +19,16 @@ void latlon2xy_dbg(double lat0, double lon0, double lat, double lon, double *X, 
 GpsFusion::GpsFusion() :
   nh_(""), gps_sub_(nh_, "fcu/gps", 1), imu_sub_(nh_, "fcu/imu_custom", 1), gps_imu_sync_(GpsImuSyncPolicy(10),
                                                                                           gps_sub_, imu_sub_),
-      height_offset_(0), last_height_(0), height_(0), have_reference_(false), ref_latitude_(0), ref_longitude_(0),
-      ref_altitude_(0)
+      have_reference_(false), set_height_zero_(false)
 {
   ros::NodeHandle nh;
+  ros::NodeHandle pnh("~");
 
   gps_imu_sync_.registerCallback(boost::bind(&GpsFusion::syncCallback, this, _1, _2));
-//  gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
+  //  gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
 
   gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("gps_metric", 1);
+  zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsFusion::zeroHeightCb, this);
 
   if (nh.getParam("/gps_ref_latitude", ref_latitude_))
   {
@@ -42,17 +43,18 @@ GpsFusion::GpsFusion() :
   }
 }
 
+
+bool GpsFusion::zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp)
+{
+  set_height_zero_ = true;
+  return true;
+}
+
 void GpsFusion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu)
 {
-
-  static bool once = true;
-
-  ros::Time timenow = ros::Time::now();
-  ROS_INFO_STREAM("times: "<<timenow-gps->header.stamp<<"  "<<timenow-imu->header.stamp);
-
   if (gps->status.status != sensor_msgs::NavSatStatus::STATUS_FIX)
   {
-//    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
+    //    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
     ROS_WARN_STREAM("No GPS fix");
     return;
   }
@@ -63,17 +65,10 @@ void GpsFusion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const a
     return;
   }
 
-  if (once)
-  {
-    last_height_ = imu->height;
-    once = false;
-    return;
+  if(set_height_zero_){
+    set_height_zero_ = false;
+    height_offset_ = imu->height;
   }
-
-  // complementary filtering of gps altitude vs. height measured by pressure sensor to avoid drift
-  // coeff = tau/(tau + sample_rate); tau=10s, sample_rate=0.2s --> coeff=0.98
-  height_ = 0.98 * (height_ + imu->height - last_height_) + 0.02 * (gps->altitude);
-  last_height_ = imu->height;
 
   if (gps_pose_pub_.getNumSubscribers() > 0)
   {
@@ -82,6 +77,7 @@ void GpsFusion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const a
     msg->header = gps->header;
     msg->pose.pose.orientation = imu->orientation; // assuming that magnetic compass is connected, then yaw is absolute
     msg->pose.pose.position = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
+    msg->pose.pose.position.z = imu->height - height_offset_;
 
     gps_pose_pub_.publish(msg);
   }
@@ -96,7 +92,7 @@ void GpsFusion::initReference(const double & latitude, const double & longitude,
 
   R(0, 0) = -s_long;
   R(0, 1) = c_long;
-  R(0, 3) = 0;
+  R(0, 2) = 0;
 
   R(1, 0) = -s_lat * c_long;
   R(1, 1) = -s_lat * s_long;
@@ -149,7 +145,7 @@ geometry_msgs::Point GpsFusion::wgs84ToEnu(const double & latitude, const double
   double dbg_x, dbg_y;
   latlon2xy_dbg(ref_latitude_, ref_longitude_, latitude, longitude, &dbg_x, &dbg_y);
 
-  ROS_INFO("local metric coordinates: lat: %f/%f lon: %f/%f", ret.x, dbg_x, ret.y, dbg_y);
+  ROS_INFO("local metric coordinates: x: %f/%f y: %f/%f", ret.x, dbg_x, ret.y, dbg_y);
 
   return ret;
 }
