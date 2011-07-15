@@ -197,7 +197,7 @@ void SSDKInterface::cbState(const asctec_hl_comm::mav_stateConstPtr & msg)
 
   state.bitfield = EXT_POSITION_BYPASS_FILTER;
 
-  comm_->sendPacket(HLI_PACKET_ID_POSITION_UPDATE, &state);
+  comm_->sendPacket(HLI_PACKET_ID_POSITION_UPDATE, state);
 }
 
 
