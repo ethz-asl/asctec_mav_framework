@@ -17,15 +17,18 @@ void latlon2xy_dbg(double lat0, double lon0, double lat, double lon, double *X, 
 }
 
 GpsFusion::GpsFusion() :
-  nh_(""), gps_sub_(nh_, "fcu/gps", 1), imu_sub_(nh_, "fcu/imu_custom", 1), gps_imu_sync_(GpsImuSyncPolicy(10),
-                                                                                          gps_sub_, imu_sub_),
-      have_reference_(false), set_height_zero_(false)
+  nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1), gps_imu_sync_(GpsImuSyncPolicy(10),
+                                                                                          gps_sub_sync_, imu_sub_sync_),
+      have_reference_(false), set_height_zero_(false),Q_M90_DEG(sqrt(2.0)/2.0, 0, 0, -sqrt(2.0)/2.0)
 {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  gps_imu_sync_.registerCallback(boost::bind(&GpsFusion::syncCallback, this, _1, _2));
+//  gps_imu_sync_.registerCallback(boost::bind(&GpsFusion::syncCallback, this, _1, _2));
   //  gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
+
+  imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsFusion::imuCallback, this);
+  gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsFusion::gpsCallback, this);
 
   gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("gps_metric", 1);
   zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsFusion::zeroHeightCb, this);
@@ -77,6 +80,53 @@ void GpsFusion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const a
     msg->header = gps->header;
     msg->pose.pose.orientation = imu->orientation; // assuming that magnetic compass is connected, then yaw is absolute
     msg->pose.pose.position = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
+//    msg->pose.pose.position = wgs84ToNwu(gps->latitude, gps->longitude, gps->altitude);
+    msg->pose.pose.position.z = imu->height - height_offset_;
+
+    gps_pose_pub_.publish(msg);
+  }
+}
+
+void GpsFusion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
+{
+  if (gps->status.status == sensor_msgs::NavSatStatus::STATUS_FIX)
+    gps_pose_ = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
+  else{
+    gps_pose_.x = gps_pose_.y = gps_pose_.z = 0;
+  }
+}
+
+void GpsFusion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu){
+  if (gps_pose_.x == 0 && gps_pose_.y == 0 && gps_pose_.z == 0)
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
+    return;
+  }
+
+  if (!have_reference_)
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
+    return;
+  }
+
+  if(set_height_zero_){
+    set_height_zero_ = false;
+    height_offset_ = imu->height;
+  }
+
+  if (gps_pose_pub_.getNumSubscribers() > 0)
+  {
+    geometry_msgs::PoseWithCovarianceStampedPtr msg(new geometry_msgs::PoseWithCovarianceStamped);
+
+    // magnetic compass is zero when pointing north, need to rotate measurement 90 deg towards east to be consistent with ENU
+
+    Eigen::Quaterniond orientation(imu->orientation.w, imu->orientation.x, imu->orientation.y, imu->orientation.z);
+    orientation = Q_M90_DEG * orientation;
+    msg->header = imu->header;
+    msg->pose.pose.orientation.w = orientation.w();
+    msg->pose.pose.orientation.x = orientation.x();
+    msg->pose.pose.orientation.y = orientation.y();
+    msg->pose.pose.orientation.z = orientation.z();
     msg->pose.pose.position.z = imu->height - height_offset_;
 
     gps_pose_pub_.publish(msg);
@@ -149,3 +199,22 @@ geometry_msgs::Point GpsFusion::wgs84ToEnu(const double & latitude, const double
 
   return ret;
 }
+
+geometry_msgs::Point GpsFusion::wgs84ToNwu(const double & latitude, const double & longitude, const double & altitude)
+{
+  geometry_msgs::Point ret;
+  Eigen::Vector3d tmp;
+  tmp = ecefToEnu(wgs84ToEcef(latitude, longitude, altitude));
+  ret.x = tmp[1];
+  ret.y = -tmp[0];
+  ret.z = tmp[2];
+
+  // debug ...
+  double dbg_x, dbg_y;
+  latlon2xy_dbg(ref_latitude_, ref_longitude_, latitude, longitude, &dbg_x, &dbg_y);
+
+  ROS_INFO("local metric coordinates: x: %f/%f y: %f/%f", ret.x, dbg_y, ret.y, -dbg_x);
+
+  return ret;
+}
+

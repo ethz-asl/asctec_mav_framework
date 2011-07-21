@@ -28,9 +28,13 @@ private:
   ros::Publisher gps_pose_pub_;
   ros::ServiceServer zero_height_srv_;
 
-  message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_;
-  message_filters::Subscriber<asctec_hl_comm::mav_imu> imu_sub_;
+  message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_sync_;
+  message_filters::Subscriber<asctec_hl_comm::mav_imu> imu_sub_sync_;
   message_filters::Synchronizer<GpsImuSyncPolicy> gps_imu_sync_;
+
+  ros::Subscriber gps_sub_;
+  ros::Subscriber imu_sub_;
+  geometry_msgs::Point gps_pose_;
 
   bool have_reference_;
   double ref_latitude_;
@@ -43,12 +47,16 @@ private:
   bool set_height_zero_;
 
   static const double DEG2RAD = M_PI/180.0;
+  const Eigen::Quaterniond Q_M90_DEG;
 
   void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);
+  void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);
+  void imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
   void initReference(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d ecefToEnu(const Eigen::Vector3d & ecef);
   geometry_msgs::Point wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude);
+  geometry_msgs::Point wgs84ToNwu(const double & latitude, const double & longitude, const double & altitude);
   bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
 
 
