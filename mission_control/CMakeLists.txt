@@ -22,3 +22,5 @@ rosbuild_add_executable(gps_fusion src/gps_fusion.cpp src/gps_fusion_node.cpp)
 
 
 rosbuild_add_executable(set_gps_reference src/set_gps_reference.cpp)
+
+rosbuild_add_executable(height_vicon_fusion src/height_vicon_fusion.cpp)
