@@ -68,13 +68,12 @@ void SSDKInterface::tfCallback()
   tf::StampedTransform pose;
   static tf::StampedTransform last_pose;
   ros::Time tf_time(0);
-
   if (tf_listener_.canTransform(config_.tf_ref_frame_id, config_.tf_tracked_frame_id, tf_time))
   {
     tf_listener_.lookupTransform(config_.tf_ref_frame_id, config_.tf_tracked_frame_id, tf_time, pose);
 
     // only send new poses to HLP checking one coordinate should be sufficient since it will never be the same
-    if (pose.getOrigin().x() != last_pose.getOrigin().x())
+    if (pose.getOrigin() != last_pose.getOrigin())
     {
       const tf::Vector3 & pos = pose.getOrigin();
       const tf::Quaternion & q = pose.getRotation();
@@ -134,7 +133,6 @@ void SSDKInterface::sendPoseToAP(const double & x, const double & y, const doubl
 
 void SSDKInterface::cbSSDKConfig(asctec_hl_interface::SSDKConfig & config, uint32_t level)
 {
-
   config.p31 = config.omega_0_xy * config.omega_0_xy;
   config.p32 = config.omega_0_z * config.omega_0_z;
   config.p33 = config.omega_0_xy * config.zeta_xy * 2.0;
@@ -153,7 +151,9 @@ void SSDKInterface::cbSSDKConfig(asctec_hl_interface::SSDKConfig & config, uint3
   if (level & asctec_hl_interface::SSDK_TF_CHANGED)
   {
     if(tf_callback_.connected())
+    {
       tf_listener_.removeTransformsChangedListener(tf_callback_);
+    }
   }
 
   config_ = config;
@@ -162,7 +162,7 @@ void SSDKInterface::cbSSDKConfig(asctec_hl_interface::SSDKConfig & config, uint3
   if ((level & asctec_hl_interface::SSDK_TF_CHANGED) && config.listen_on_tf)
   {
     if(!tf_callback_.connected())
-      tf_listener_.addTransformsChangedListener(boost::bind(&SSDKInterface::tfCallback, this));
+      tf_callback_ = tf_listener_.addTransformsChangedListener(boost::bind(&SSDKInterface::tfCallback, this));
   }
 }
 
