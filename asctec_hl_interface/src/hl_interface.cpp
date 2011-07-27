@@ -440,7 +440,7 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
   {
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_OFF)
     {
-      sendAccCommandLL(msg);
+      sendAccCommandLL(*msg);
       validCommand = true;
     }
     else
@@ -451,15 +451,14 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
 
   else if (msg->type == asctec_hl_comm::mav_ctrl::velocity)
   {
-
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_GPS)
     {
-      sendVelCommandLL(msg);
+      sendVelCommandLL(*msg);
       validCommand = true;
     }
     else if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL)
     {
-      sendVelCommandHL(msg);
+      sendVelCommandHL(*msg);
       validCommand = true;
     }
     else
@@ -473,10 +472,18 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
   }
   else if (msg->type == asctec_hl_comm::mav_ctrl::position)
   {
+    // allow to "inherit" max velocity from parameters
+    asctec_hl_comm::mav_ctrl ctrl_msg = *msg;
+    if(ctrl_msg.v_max_xy == -1)
+      ctrl_msg.v_max_xy = config_.max_velocity_xy;
+
+    if(ctrl_msg.v_max_z == -1)
+      ctrl_msg.v_max_z = config_.max_velocity_z;
+
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL &&
         config_.state_estimation != asctec_hl_interface::HLInterface_STATE_EST_OFF)
     {
-      sendPosCommandHL(msg);
+      sendPosCommandHL(ctrl_msg);
       validCommand = true;
     }
     else
@@ -495,20 +502,20 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
   }
 }
 
-void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
+void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg)
 {
   HLI_CMD_LL ctrlLL;
 
   // spin-directions positive according to right hand rule around axis
-  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg->x * 180.0 / M_PI * 1000.0 / (float)k_stick_)); // cmd=real_angle*1000/K_stick
-  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg->y * 180.0 / M_PI * 1000.0 / (float)k_stick_)); // dito
+  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg.x * 180.0 / M_PI * 1000.0 / (float)k_stick_)); // cmd=real_angle*1000/K_stick
+  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg.y * 180.0 / M_PI * 1000.0 / (float)k_stick_)); // dito
 
   // cmd=real_anglular_velocity*1000/k_stick_yaw,
   // cmd is limited to +- 1700 such that it's not possible to switch the motors with a bad command
-  ctrlLL.yaw = helper::clamp<short>(-1700, 1700, (short)(msg->yaw * 180.0 / M_PI * 1000.0 / (float)k_stick_yaw_));
+  ctrlLL.yaw = helper::clamp<short>(-1700, 1700, (short)(msg.yaw * 180.0 / M_PI * 1000.0 / (float)k_stick_yaw_));
 
   // catch wrong thrust command ;-)
-  if (msg->z > 1.0)
+  if (msg.z > 1.0)
   {
     ROS_ERROR(
         "I just prevented you from giving full thrust..."
@@ -517,34 +524,34 @@ void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
   }
   else
   {
-    ctrlLL.z = helper::clamp<short>(0, 4096, (short)(msg->z * 4096.0));
+    ctrlLL.z = helper::clamp<short>(0, 4096, (short)(msg.z * 4096.0));
   }
 
 //  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_LL, ctrlLL);
 }
 
-void HLInterface::sendVelCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
+void HLInterface::sendVelCommandLL(const asctec_hl_comm::mav_ctrl & msg)
 {
   HLI_CMD_LL ctrlLL;
 
-  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg->x / config_.max_velocity_xy * 2047.0));
-  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg->y / config_.max_velocity_xy * 2047.0));
-  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg->yaw / config_.max_velocity_yaw* 2047.0));
-  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg->z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
+  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg.x / config_.max_velocity_xy * 2047.0));
+  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg.y / config_.max_velocity_xy * 2047.0));
+  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
+  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
 
 //  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_LL, ctrlLL);
 }
 
-void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
+void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg)
 {
   HLI_CMD_HL ctrlHL;
 
-  ctrlHL.vX = (short)(helper::clamp<float>(-config_.max_velocity_xy, config_.max_velocity_xy, msg->x) * 1000.0);
-  ctrlHL.vY = (short)(helper::clamp<float>(-config_.max_velocity_xy, config_.max_velocity_xy, msg->y) * 1000.0);
-  ctrlHL.vZ = (short)(helper::clamp<float>(-config_.max_velocity_z, config_.max_velocity_z, msg->z) * 1000.0);
-  ctrlHL.vYaw = (short)(helper::clamp<float>(-config_.max_velocity_yaw, config_.max_velocity_yaw, msg->yaw) * 180.0 / M_PI * 1000.0);
+  ctrlHL.vX = (short)(helper::clamp<float>(-config_.max_velocity_xy, config_.max_velocity_xy, msg.x) * 1000.0);
+  ctrlHL.vY = (short)(helper::clamp<float>(-config_.max_velocity_xy, config_.max_velocity_xy, msg.y) * 1000.0);
+  ctrlHL.vZ = (short)(helper::clamp<float>(-config_.max_velocity_z, config_.max_velocity_z, msg.z) * 1000.0);
+  ctrlHL.vYaw = (short)(helper::clamp<float>(-config_.max_velocity_yaw, config_.max_velocity_yaw, msg.yaw) * 180.0 / M_PI * 1000.0);
 
   ctrlHL.x = 0;
   ctrlHL.y = 0;
@@ -555,7 +562,7 @@ void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
 
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_HL, ctrlHL);
 }
-void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
+void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg)
 {
   HLI_CMD_HL ctrlHL;
   static unsigned int seq = 1; // <-- set to one, otherwise first packet doesn't get through
@@ -566,14 +573,14 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrlConstPtr & msg)
   ctrlHL.vZ = 0;
   //			ctrlHL.vHeading = 0;
 
-  ctrlHL.x = static_cast<int>(helper::clamp<float>(config_.min_pos_x, config_.max_pos_x, msg->x) * 1000.0);
-  ctrlHL.y = static_cast<int>(helper::clamp<float>(config_.min_pos_y, config_.max_pos_y, msg->y) * 1000.0);
-  ctrlHL.z = static_cast<int>(helper::clamp<float>(config_.min_pos_z, config_.max_pos_z, msg->z) * 1000.0);
+  ctrlHL.x = static_cast<int>(helper::clamp<float>(config_.min_pos_x, config_.max_pos_x, msg.x) * 1000.0);
+  ctrlHL.y = static_cast<int>(helper::clamp<float>(config_.min_pos_y, config_.max_pos_y, msg.y) * 1000.0);
+  ctrlHL.z = static_cast<int>(helper::clamp<float>(config_.min_pos_z, config_.max_pos_z, msg.z) * 1000.0);
   // asctec uses 0...360° * 1000, we -pi...+pi
-  ctrlHL.heading = helper::yaw2asctec(msg->yaw);
+  ctrlHL.heading = helper::yaw2asctec(msg.yaw);
 
-  ctrlHL.vMaxXY = static_cast<short>(std::min<float>(config_.max_velocity_xy, msg->v_max_xy)*1000);
-  ctrlHL.vMaxZ = static_cast<short>(std::min<float>(config_.max_velocity_z, msg->v_max_z)*1000);
+  ctrlHL.vMaxXY = static_cast<short>(std::min<float>(config_.max_velocity_xy, msg.v_max_xy)*1000);
+  ctrlHL.vMaxZ = static_cast<short>(std::min<float>(config_.max_velocity_z, msg.v_max_z)*1000);
 
   ctrlHL.bitfield = 0;
 

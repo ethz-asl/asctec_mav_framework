@@ -96,16 +96,16 @@ private:
   void controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr &msg);
 
   /// sends an acceleration command (pitch, roll, thrust), yaw velocity to the LL processor
-  void sendAccCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg);
+  void sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg);
 
   /// sends a velocity command to the HLP. Position control on the HL has to be enabled
-  void sendVelCommandLL(const asctec_hl_comm::mav_ctrlConstPtr & msg);
+  void sendVelCommandLL(const asctec_hl_comm::mav_ctrl & msg);
 
   /// sends a velocity command to the LLP. Velocity is controlled based on GPS
-  void sendVelCommandHL(const asctec_hl_comm::mav_ctrlConstPtr & msg);
+  void sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg);
 
   /// sends a position (=waypoint) command to the HL. Position control on the HL has to be enabled
-  void sendPosCommandHL(const asctec_hl_comm::mav_ctrlConstPtr & msg);
+  void sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg);
 
   int16_t gps_status_;
   int16_t gps_satellites_used_;
