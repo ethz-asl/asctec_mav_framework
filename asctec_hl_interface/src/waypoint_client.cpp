@@ -96,12 +96,9 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  actionlib::SimpleActionClient<asctec_hl_comm::WaypointAction> ac("fcu/waypoint", true);
+  actionlib::SimpleActionClient<asctec_hl_comm::WaypointAction> ac(nh, "fcu/waypoint", true);
 
   asctec_hl_comm::WaypointGoal goal;
-
-  ros::AsyncSpinner spinner(0);
-  spinner.start();
 
   ROS_INFO("Waiting for action server to start.");
   ac.waitForServer(); //will wait for infinite time
