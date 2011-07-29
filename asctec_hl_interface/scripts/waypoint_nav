@@ -33,13 +33,13 @@
 NAME='wpclient'
 
 # ROS specific imports
-import roslib; roslib.load_manifest('asctecinterface')
+import roslib; roslib.load_manifest('asctec_hl_interface')
 import rospy
 import actionlib
 import re
 import time
 
-import sfly_action.msg
+import asctec_hl_comm.msg
 
 def parseWaypoints():
     rospy.loginfo("parsing waypoint list...")
@@ -71,9 +71,9 @@ def parseWaypoints():
     return waypoints
 
 def waypoint_client(wp):
-    client = actionlib.SimpleActionClient('fcu/waypoint', sfly_action.msg.WaypointAction)
+    client = actionlib.SimpleActionClient('fcu/waypoint', asctec_hl_comm.msg.WaypointAction)
     client.wait_for_server()
-    goal = sfly_action.msg.WaypointGoal()
+    goal = asctec_hl_comm.msg.WaypointGoal()
 
     goal.goal_pos.x = 0
     goal.goal_pos.y = 0
