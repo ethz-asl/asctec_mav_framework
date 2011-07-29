@@ -27,8 +27,10 @@ set(ASCTEC_HL_INTERFACE_SRC
     src/ekf_interface.cpp
     )
 
+rosbuild_add_boost_directories()
 
 rosbuild_add_executable(hl_node ${ASCTEC_HL_INTERFACE_SRC} src/node.cpp)
+rosbuild_link_boost(hl_node thread system signals)
 
 rosbuild_add_executable(ctrl_test src/ctrl_test.cpp)
 rosbuild_add_executable(waypoint_server src/waypoint_server.cpp)
