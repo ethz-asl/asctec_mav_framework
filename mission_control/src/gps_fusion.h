@@ -47,7 +47,7 @@ private:
   bool set_height_zero_;
 
   static const double DEG2RAD = M_PI/180.0;
-  const Eigen::Quaterniond Q_M90_DEG;
+  const Eigen::Quaterniond Q_90_DEG;
 
   void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);
   void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);

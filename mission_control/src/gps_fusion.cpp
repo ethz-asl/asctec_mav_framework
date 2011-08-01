@@ -19,7 +19,7 @@ void latlon2xy_dbg(double lat0, double lon0, double lat, double lon, double *X, 
 GpsFusion::GpsFusion() :
   nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1), gps_imu_sync_(GpsImuSyncPolicy(10),
                                                                                           gps_sub_sync_, imu_sub_sync_),
-      have_reference_(false), set_height_zero_(false),Q_M90_DEG(sqrt(2.0)/2.0, 0, 0, -sqrt(2.0)/2.0)
+      have_reference_(false), set_height_zero_(false),Q_90_DEG(sqrt(2.0)/2.0, 0, 0, sqrt(2.0)/2.0)
 {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
@@ -121,7 +121,7 @@ void GpsFusion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu){
     // magnetic compass is zero when pointing north, need to rotate measurement 90 deg towards east to be consistent with ENU
 
     Eigen::Quaterniond orientation(imu->orientation.w, imu->orientation.x, imu->orientation.y, imu->orientation.z);
-    orientation = Q_M90_DEG * orientation;
+    orientation = Q_90_DEG * orientation;
     msg->header = imu->header;
     msg->pose.pose.orientation.w = orientation.w();
     msg->pose.pose.orientation.x = orientation.x();
