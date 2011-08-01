@@ -127,6 +127,7 @@ void GpsFusion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu){
     msg->pose.pose.orientation.x = orientation.x();
     msg->pose.pose.orientation.y = orientation.y();
     msg->pose.pose.orientation.z = orientation.z();
+    msg->pose.pose.position = gps_pose_;
     msg->pose.pose.position.z = imu->height - height_offset_;
 
     gps_pose_pub_.publish(msg);
