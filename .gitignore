@@ -1,3 +1,9 @@
+*.o
+*.lst
+*.cfgc
+*.elf
+*.map
+*.lss
 .cproject
 .project
 build
