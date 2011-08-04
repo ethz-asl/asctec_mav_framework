@@ -5,7 +5,7 @@
 
   </description>
   <author>Markus Achtelik, Michael Achtelik, Stephan Weiss, Laurent Kneip</author>
-  <license></license>
+  <license>sdk.c/sdk.h: BSD; HL SDK, SSDK lib by AscTec</license>
   <review status="unreviewed"  notes="This is unstable and under active development"/>
   <url>http://ros.org/wiki/asctec_hl_firmware</url>
 </package>
