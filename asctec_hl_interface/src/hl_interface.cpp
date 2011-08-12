@@ -53,6 +53,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   control_sub_ = nh_.subscribe("control", 1, &HLInterface::controlCmdCallback, this);
 
   motor_srv_ = nh_.advertiseService("motor_control", &HLInterface::cbMotors, this);
+  crtl_srv_ = nh_.advertiseService("control", &HLInterface::cbCtrl, this);
 
   config_ = asctec_hl_interface::HLInterfaceConfig::__getDefault__();
 
@@ -434,31 +435,46 @@ bool HLInterface::cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req,
 
 void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & msg)
 {
+  sendControlCmd(*msg);
+}
+
+bool HLInterface::cbCtrl(asctec_hl_comm::MavCtrlSrv::Request & req, asctec_hl_comm::MavCtrlSrv::Response & resp)
+{
+  sendControlCmd(req.ctrl, &resp.ctrl_result);
+  return resp.ctrl_result.type != -1;
+}
+
+void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result)
+{
   bool validCommand = false;
 
-  if (msg->type == asctec_hl_comm::mav_ctrl::acceleration)
+  if (ctrl.type == asctec_hl_comm::mav_ctrl::acceleration)
   {
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_OFF)
     {
-      sendAccCommandLL(*msg);
+      sendAccCommandLL(ctrl, ctrl_result);
       validCommand = true;
     }
     else
+    {
       ROS_WARN_STREAM_THROTTLE(2,
           "GPS/Highlevel position control must be turned off. "
           "Set \"position_control\" parameter to \"off\"");
+      if(ctrl_result != NULL)
+        ctrl_result->type = -1;
+    }
   }
 
-  else if (msg->type == asctec_hl_comm::mav_ctrl::velocity)
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::velocity)
   {
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_GPS)
     {
-      sendVelCommandLL(*msg);
+      sendVelCommandLL(ctrl, ctrl_result);
       validCommand = true;
     }
     else if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL)
     {
-      sendVelCommandHL(*msg);
+      sendVelCommandHL(ctrl, ctrl_result);
       validCommand = true;
     }
     else
@@ -467,13 +483,15 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
           "Higlevel or Lowlevel processor position control has not "
           "been chosen. Set \"position_control\" parameter to "
           "\"HighLevel\" or \"GPS\" ! sending nothing to mav !");
+      if(ctrl_result != NULL)
+        ctrl_result->type = -1;
     }
 
   }
-  else if (msg->type == asctec_hl_comm::mav_ctrl::position)
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::position)
   {
     // allow to "inherit" max velocity from parameters
-    asctec_hl_comm::mav_ctrl ctrl_msg = *msg;
+    asctec_hl_comm::mav_ctrl ctrl_msg = ctrl;
     if(ctrl_msg.v_max_xy == -1)
       ctrl_msg.v_max_xy = config_.max_velocity_xy;
 
@@ -483,7 +501,7 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL &&
         config_.state_estimation != asctec_hl_interface::HLInterface_STATE_EST_OFF)
     {
-      sendPosCommandHL(ctrl_msg);
+      sendPosCommandHL(ctrl_msg, ctrl_result);
       validCommand = true;
     }
     else
@@ -492,6 +510,8 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
           "Higlevel processor position control was not chosen and/or no state "
           "estimation was selected. Set the \"position_control\" parameter to "
           "\"HighLevel\" and the \"state_estimation\" parameter to anything but \"off\"! sending nothing to mav !");
+      if(ctrl_result != NULL)
+        ctrl_result->type = -1;
     }
   }
 
@@ -502,7 +522,7 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
   }
 }
 
-void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg)
+void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg, asctec_hl_comm::mav_ctrl * ctrl_result)
 {
   HLI_CMD_LL ctrlLL;
 
@@ -520,6 +540,10 @@ void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg)
     ROS_ERROR(
         "I just prevented you from giving full thrust..."
         "\nset the input range correct!!! [0 ... 1.0] ");
+
+    if(ctrl_result != NULL)
+      ctrl_result->type = -1;
+
     return;
   }
   else
@@ -527,11 +551,20 @@ void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg)
     ctrlLL.z = helper::clamp<short>(0, 4096, (short)(msg.z * 4096.0));
   }
 
+  if(ctrl_result != NULL)
+  {
+    *ctrl_result = msg;
+    ctrl_result->x = static_cast<float>(ctrlLL.x * k_stick_) / 180.0 * M_PI * 1e-3;
+    ctrl_result->y = static_cast<float>(ctrlLL.y * k_stick_) / 180.0 * M_PI * 1e-3;
+    ctrl_result->z = static_cast<float>(ctrlLL.z) / 4096.0;
+    ctrl_result->yaw = static_cast<float>(ctrlLL.yaw * k_stick_yaw_) / 180.0 * M_PI * 1e-3;
+  }
+
 //  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_LL, ctrlLL);
 }
 
-void HLInterface::sendVelCommandLL(const asctec_hl_comm::mav_ctrl & msg)
+void HLInterface::sendVelCommandLL(const asctec_hl_comm::mav_ctrl & msg, asctec_hl_comm::mav_ctrl * ctrl_result)
 {
   HLI_CMD_LL ctrlLL;
 
@@ -540,11 +573,20 @@ void HLInterface::sendVelCommandLL(const asctec_hl_comm::mav_ctrl & msg)
   ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
   ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
 
+  if (ctrl_result != NULL)
+  {
+    *ctrl_result = msg;
+    ctrl_result->x = static_cast<float> (ctrlLL.x) / 2047.0 * config_.max_velocity_xy;
+    ctrl_result->y = static_cast<float> (ctrlLL.y) / 2047.0 * config_.max_velocity_xy;
+    ctrl_result->z = static_cast<float> (ctrlLL.z - 2047) / 2047.0 * config_.max_velocity_z;
+    ctrl_result->yaw = static_cast<float> (ctrlLL.yaw) / 2047.0 * config_.max_velocity_yaw;
+  }
+
 //  ROS_INFO_STREAM("sending command: x:"<<ctrlLL.x<<" y:"<<ctrlLL.y<<" yaw:"<<ctrlLL.yaw<<" z:"<<ctrlLL.z<<" ctrl:"<<enable_ctrl_);
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_LL, ctrlLL);
 }
 
-void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg)
+void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_hl_comm::mav_ctrl * ctrl_result)
 {
   HLI_CMD_HL ctrlHL;
 
@@ -560,9 +602,18 @@ void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg)
 
   ctrlHL.bitfield = 1;
 
+  if (ctrl_result != NULL)
+  {
+    *ctrl_result = msg;
+    ctrl_result->x = static_cast<float> (ctrlHL.vX) * 1e-3;
+    ctrl_result->y = static_cast<float> (ctrlHL.vY) * 1e-3;
+    ctrl_result->z = static_cast<float> (ctrlHL.vZ) * 1e-3;
+    ctrl_result->yaw = static_cast<float> (ctrlHL.vYaw) / 180.0e3 * M_PI;
+  }
+
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_HL, ctrlHL);
 }
-void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg)
+void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_hl_comm::mav_ctrl * ctrl_result)
 {
   HLI_CMD_HL ctrlHL;
   static unsigned int seq = 1; // <-- set to one, otherwise first packet doesn't get through
@@ -583,6 +634,17 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg)
   ctrlHL.vMaxZ = static_cast<short>(std::min<float>(config_.max_velocity_z, msg.v_max_z)*1000);
 
   ctrlHL.bitfield = 0;
+
+  if (ctrl_result != NULL)
+  {
+    *ctrl_result = msg;
+    ctrl_result->x = static_cast<float> (ctrlHL.x) * 1e-3;
+    ctrl_result->y = static_cast<float> (ctrlHL.y) * 1e-3;
+    ctrl_result->z = static_cast<float> (ctrlHL.z) * 1e-3;
+    ctrl_result->yaw = static_cast<float> (ctrlHL.heading) / 180.0e3 * M_PI;
+    if (ctrl_result->yaw > M_PI)
+        ctrl_result->yaw -= 2 * M_PI;
+  }
 
   comm_->sendPacket(HLI_PACKET_ID_CONTROL_HL, ctrlHL);
   seq++;

@@ -40,10 +40,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <asctec_hl_comm/mav_rcdata.h>
 #include <asctec_hl_comm/mav_ctrl.h>
 #include <asctec_hl_comm/mav_imu.h>
-#include <asctec_hl_comm/mav_ctrl_motors.h>
 #include <asctec_hl_comm/mav_status.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
+
+// service includes
+#include <asctec_hl_comm/MavCtrlSrv.h>
+#include <asctec_hl_comm/mav_ctrl_motors.h>
 
 // dynamic reconfigure includes
 #include <dynamic_reconfigure/server.h>
@@ -77,6 +80,7 @@ private:
   ros::Subscriber control_sub_;
 
   ros::ServiceServer motor_srv_;
+  ros::ServiceServer crtl_srv_;
 
   // callback functions for data from the serial port
   void processImuData(uint8_t * buf, uint32_t bufLength);
@@ -89,23 +93,29 @@ private:
   /// service to start/stop motors
   bool cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req, asctec_hl_comm::mav_ctrl_motors::Response &resp);
 
+  /// ctrl service callback
+  bool cbCtrl(asctec_hl_comm::MavCtrlSrv::Request & req, asctec_hl_comm::MavCtrlSrv::Response & resp);
+
   /**
    * callback that listens to mav_ctrl messages
    * message must be sent at least at 10 Hz, otherwise the mav will switch back to manual control!
    **/
   void controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr &msg);
 
+  /// evaluates the mav_ctrl message and sends the appropriate commands to the HLP
+  void sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result=NULL);
+
   /// sends an acceleration command (pitch, roll, thrust), yaw velocity to the LL processor
-  void sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg);
+  void sendAccCommandLL(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result=NULL);
 
   /// sends a velocity command to the HLP. Position control on the HL has to be enabled
-  void sendVelCommandLL(const asctec_hl_comm::mav_ctrl & msg);
+  void sendVelCommandLL(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result=NULL);
 
   /// sends a velocity command to the LLP. Velocity is controlled based on GPS
-  void sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg);
+  void sendVelCommandHL(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result=NULL);
 
   /// sends a position (=waypoint) command to the HL. Position control on the HL has to be enabled
-  void sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg);
+  void sendPosCommandHL(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result=NULL);
 
   int16_t gps_status_;
   int16_t gps_satellites_used_;
