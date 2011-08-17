@@ -1,33 +1,33 @@
 /*
 
-Copyright (c) 2011, Markus Achtelik, ASL, ETH Zurich, Switzerland
-You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
+ Copyright (c) 2011, Markus Achtelik, ASL, ETH Zurich, Switzerland
+ You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
 
-All rights reserved.
+ All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-* Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-* Neither the name of ETHZ-ASL nor the
-names of its contributors may be used to endorse or promote products
-derived from this software without specific prior written permission.
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ * Neither the name of ETHZ-ASL nor the
+ names of its contributors may be used to endorse or promote products
+ derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL ETHZ-ASL BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL ETHZ-ASL BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-*/
+ */
 
 #include "main.h"
 #include "system.h"
@@ -38,6 +38,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "irq.h"
 #include "LPC214x.h"
 #include "hardware.h"
+
+#include <ekf/autogen_ekf_propagation.h>
+#include <ekf/autogen_mul_quat.h>
+#include <ekf/pos_ekf_initialize.h>
 
 struct WO_SDK_STRUCT WO_SDK;
 struct WO_CTRL_INPUT WO_CTRL_Input;
@@ -53,7 +57,6 @@ volatile int64_t timestamp = 0;
 int64_t timeOffset = 0;
 unsigned short time_step = 2000;
 int64_t time_correction = 0;
-
 
 short cmdLLValid = 0;
 unsigned char cmdLLNew = 0;
@@ -75,6 +78,15 @@ HLI_STATUS statusData;
 short motor_state = -1;
 short motor_state_count = 0;
 unsigned int sdkLoops = 0;
+
+// ekf variables
+real32_T ekf_current_state[HLI_EKF_STATE_SIZE];
+real32_T ekf_last_state[HLI_EKF_STATE_SIZE];
+real32_T acc[3];
+real32_T ang_vel[3];
+real32_T ekf_dt;
+real32_T ekf_q_tmp[4];
+HLI_EKF_STATE ekf_state_out;
 
 // set up data structures for receiving data ##################################
 
@@ -153,6 +165,8 @@ void sdkInit(void)
 
   UART0_rxFlush();
   UART0_txFlush();
+
+  pos_ekf_initialize();
 
   startAutoBaud();
 }
@@ -241,7 +255,8 @@ void SDK_mainloop(void)
 
   // decide which position/state input we take for position control
   // SSDK operates in NED --> convert from ENU
-  switch(config.mode_state_estimation){
+  switch (config.mode_state_estimation)
+  {
     case HLI_MODE_STATE_ESTIMATION_HL_SSDK:
       extPositionValid = 1;
       extPosition.bitfield = 0;
@@ -278,6 +293,10 @@ void SDK_mainloop(void)
       extPosition.qualVy = ext_position_update.qualVy;
       extPosition.qualVz = ext_position_update.qualVz;
       break;
+    case HLI_MODE_STATE_ESTIMATION_HL_EKF:
+      predictEkfState();
+      extPositionValid = 1;
+      break;
     default:
       extPositionValid = 0;
   }
@@ -296,13 +315,15 @@ void SDK_mainloop(void)
   { // motors are either stopped or running --> normal operation
 
     // commands are always written to LL by the Matlab controller, decide if we need to overwrite them
-    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && config.mode_position_control == HLI_MODE_POSCTRL_HL)
+    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && config.mode_position_control
+        == HLI_MODE_POSCTRL_HL)
     {
       WO_CTRL_Input.ctrl = config.position_control_axis_enable;
       WO_SDK.ctrl_enabled = 1;
     }
 
-    else if (cmdLLValid > 0 && (config.mode_position_control == HLI_MODE_POSCTRL_LL || config.mode_position_control == HLI_MODE_POSCTRL_OFF))
+    else if (cmdLLValid > 0 && (config.mode_position_control == HLI_MODE_POSCTRL_LL || config.mode_position_control
+        == HLI_MODE_POSCTRL_OFF))
     {
       writeCommand(cmdLL.x, cmdLL.y, cmdLL.yaw, cmdLL.z, config.position_control_axis_enable, 1);
     }
@@ -329,7 +350,7 @@ void SDK_mainloop(void)
       writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
       motor_state = -1;
     }
-    motor_state_count ++;
+    motor_state_count++;
   }
   else if (motor_state == 0)
   {
@@ -368,25 +389,34 @@ void SDK_mainloop(void)
   {
     sendImuData();
   }
+
   if (checkTxPeriod(subscription.rcdata))
   {
     sendRcData();
   }
+
   if (checkTxPeriod(subscription.gps))
   {
     sendGpsData();
   }
+
   if ((sdkLoops + 20) % 500 == 0)
   {
     sendStatus();
     writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_STATUS, (unsigned char*)&ssdk_status, sizeof(ssdk_status));
   }
+
   if (checkTxPeriod(subscription.ssdk_debug))
   {
     ssdk_debug.timestamp = timestamp;
     writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_DEBUG, (unsigned char*)&ssdk_debug, sizeof(ssdk_debug));
   }
-//
+
+  if (checkTxPeriod(subscription.ekf_state))
+  {
+    sendEkfState();
+  }
+
   UART_send_ringbuffer();
 
   synchronizeTime();
@@ -509,7 +539,7 @@ inline void synchronizeTime()
   // check for timesync packet
   if (packetTimeSync->updated)
   {
-    timeOffset = (900*timeOffset + 100 * (timeSync.ts1 * 2 - timeSync.tc1 - timestamp) / 2) / 1000;
+    timeOffset = (900 * timeOffset + 100 * (timeSync.ts1 * 2 - timeSync.tc1 - timestamp) / 2) / 1000;
     statusData.timesync_offset = timeOffset;
 
     if (timeOffset > 1e7 || timeOffset < -1e7)
@@ -562,7 +592,7 @@ inline void watchdog(void)
   static uint32_t lastTxPackets = 0;
 
   // check if a valid packet arrived in the HLI_COMMUNICATION_TIMEOUT s
-  if ((sdkLoops % (ControllerCyclesPerSecond  * HLI_COMMUNICATION_TIMEOUT )) == 0)
+  if ((sdkLoops % (ControllerCyclesPerSecond * HLI_COMMUNICATION_TIMEOUT)) == 0)
   {
     if (UART_rxGoodPacketCount == lastTxPackets)
     {
@@ -578,4 +608,137 @@ inline int checkTxPeriod(uint16_t period)
     return 0;
   else
     return sdkLoops % period == 0;
+}
+
+void predictEkfState(void)
+{
+  // conversion from AscTec acceleration values to m/s^2
+  const real32_T ASCTEC_ACC_TO_SI = 9.81e-3;
+
+  // conversion from AscTec turn rates to rad/s
+  const real32_T ASCTEC_OMEGA_TO_SI = 0.015 * M_PI / 180.0;
+
+  static uint64_t last_time = 0;
+
+  static int once = 0;
+  if (once == 0)
+  {
+    ekf_last_state[6] = 1.0;
+    once = 1;
+  }
+
+  int i = 0;
+
+  // bring data to SI units and ENU coordinates
+  acc[0] = -((real32_T)LL_1khz_attitude_data.acc_x) * ASCTEC_ACC_TO_SI;
+  acc[1] = -((real32_T)LL_1khz_attitude_data.acc_y) * ASCTEC_ACC_TO_SI;
+  acc[2] = -((real32_T)LL_1khz_attitude_data.acc_z) * ASCTEC_ACC_TO_SI;
+
+  ang_vel[0] = -((real32_T)LL_1khz_attitude_data.angvel_roll) * ASCTEC_OMEGA_TO_SI;
+  ang_vel[1] = ((real32_T)LL_1khz_attitude_data.angvel_pitch) * ASCTEC_OMEGA_TO_SI;
+  ang_vel[2] = -((real32_T)LL_1khz_attitude_data.angvel_yaw) * ASCTEC_OMEGA_TO_SI;
+
+  ekf_dt = (real32_T)(timestamp - last_time) * 1.0e-6;
+  last_time = timestamp;
+
+  autogen_ekf_propagation(ekf_last_state, acc, ang_vel, /*ekf_dt*/0.001, ekf_current_state);
+
+  extPosition.bitfield = EXT_POSITION_BYPASS_FILTER;
+  extPosition.x = ekf_current_state[0] * 1000;
+  extPosition.y = ekf_current_state[1] * 1000;
+  extPosition.z = ekf_current_state[2] * 1000;
+  extPosition.vX = ekf_current_state[3] * 1000;
+  extPosition.vY = ekf_current_state[4] * 1000;
+  extPosition.vZ = ekf_current_state[5] * 1000;
+
+  real32_T * const q = &ekf_current_state[6];
+
+  //get yaw:
+  real32_T yaw = atan2(2.0 * q[2] * q[0] - 2.0 * q[1] * q[3], 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3]);
+  extPosition.heading = 360000 - (int)(((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0);
+
+  extPosition.qualX = 100;
+  extPosition.qualY = 100;
+  extPosition.qualZ = 100;
+  extPosition.qualVx = 100;
+  extPosition.qualVy = 100;
+  extPosition.qualVz = 100;
+
+  if (packetEkfState->updated)
+  {
+    packetEkfState->updated = 0;
+    if (ekfState.flag == HLI_EKF_STATE_STATE_CORRECTION)
+    {
+      // correct states
+      // position
+      ekf_current_state[0] += ekfState.state[0];
+      ekf_current_state[1] += ekfState.state[1];
+      ekf_current_state[2] += ekfState.state[2];
+
+      // velocity
+      ekf_current_state[3] += ekfState.state[3];
+      ekf_current_state[4] += ekfState.state[4];
+      ekf_current_state[5] += ekfState.state[5];
+
+      // orientation
+      ekf_q_tmp[0] = q[0];
+      ekf_q_tmp[1] = q[1];
+      ekf_q_tmp[2] = q[2];
+      ekf_q_tmp[3] = q[3];
+
+      const real32_T * const qt = ekf_q_tmp;
+      const real32_T * const qc = &ekfState.state[6];
+
+//      autogen_mul_quat(ekf_q_tmp, &ekfState.state[6], q);
+
+      q[0] = qt[0]*qc[0] - qt[1]*qc[1] - qt[2]*qc[2] - qt[3]*qc[3];
+      q[1] = qt[0]*qc[1] + qt[1]*qc[0] + qt[2]*qc[3] - qt[3]*qc[2];
+      q[2] = qt[0]*qc[2] + qt[2]*qc[0] - qt[1]*qc[3] + qt[3]*qc[1];
+      q[3] = qt[0]*qc[3] + qt[1]*qc[2] - qt[2]*qc[1] + qt[3]*qc[0];
+
+      // gyro bias
+      ekf_current_state[10] += ekfState.state[10];
+      ekf_current_state[11] += ekfState.state[11];
+      ekf_current_state[12] += ekfState.state[12];
+
+      // acceleration bias
+      ekf_current_state[13] += ekfState.state[13];
+      ekf_current_state[14] += ekfState.state[14];
+      ekf_current_state[15] += ekfState.state[15];
+    }
+    else if (ekfState.flag == HLI_EKF_STATE_INITIALIZATION)
+    {
+      for (i = 0; i < HLI_EKF_STATE_SIZE; i++)
+      {
+        ekf_current_state[i] = ekfState.state[i];
+      }
+    }
+  }
+
+  for (i = 0; i < HLI_EKF_STATE_SIZE; i++)
+  {
+    ekf_last_state[i] = ekf_current_state[i];
+  }
+}
+
+void sendEkfState(void)
+{
+  int i = 0;
+  ekf_state_out.timestamp = timestamp;
+
+  // TODO: smoothing of data to make Nyquist happy ;-)
+  // acceleration, angular velocities, attitude, height, dheight following the ENU convention (x front, y left, z up)
+  ekf_state_out.acc_x = -LL_1khz_attitude_data.acc_x;
+  ekf_state_out.acc_y = -LL_1khz_attitude_data.acc_y;
+  ekf_state_out.acc_z = -LL_1khz_attitude_data.acc_z;
+  ekf_state_out.ang_vel_roll = -LL_1khz_attitude_data.angvel_roll;
+  ekf_state_out.ang_vel_pitch = LL_1khz_attitude_data.angvel_pitch;
+  ekf_state_out.ang_vel_yaw = -LL_1khz_attitude_data.angvel_yaw;
+
+  for (i = 0; i < HLI_EKF_STATE_SIZE; i++)
+  {
+    ekf_state_out.state[i] = ekf_current_state[i];
+  }
+
+  writePacket2Ringbuffer(HLI_PACKET_ID_EKF_STATE, (unsigned char*)&ekf_state_out, sizeof(ekf_state_out));
 }

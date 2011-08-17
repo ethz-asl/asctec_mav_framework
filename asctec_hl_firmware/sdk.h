@@ -71,6 +71,12 @@ inline void watchdog(void);
 /// checks if a packet has to be sent
 inline int checkTxPeriod(uint16_t period);
 
+/// perform ekf state prediction
+inline void predictEkfState(void);
+
+/// assembles ekf state packet and sends it
+inline void sendEkfState(void);
+
 /// counts ssdk loops
 extern unsigned int sdkLoops;
 

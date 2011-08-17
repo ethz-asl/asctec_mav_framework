@@ -71,9 +71,14 @@ SRCARM += mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
 
-#SRCARM += src/ssdk/ert_main.c
-#SRCARM += src/ssdk/onboard_matlab.c
-#SRCARM += src/ssdk/onboard_matlab_data.c
+SRCARM += d_ekf/d_ekf_src/ekf/pos_ekf_initialize.c
+SRCARM += d_ekf/d_ekf_src/ekf/pos_ekf_terminate.c
+SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation.c
+SRCARM += d_ekf/d_ekf_src/ekf/autogen_mul_quat.c
+SRCARM += d_ekf/d_ekf_src/ekf/rt_nonfinite.c
+SRCARM += d_ekf/d_ekf_src/ekf/rt_pow32_snf.c
+SRCARM += d_ekf/d_ekf_src/ekf/rtGetInf.c
+SRCARM += d_ekf/d_ekf_src/ekf/rtGetNaN.c
 
 #Sources with interrupt routines in them
 SRCARMINT = $(TARGET).c
@@ -139,7 +144,7 @@ DEBUG = dwarf-2
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS = Common_WinARM/inc ssdk/include ../asctec_hl_comm/include/asctec_hl_comm
+EXTRAINCDIRS = Common_WinARM/inc ssdk/include ../asctec_hl_comm/include/asctec_hl_comm d_ekf/d_ekf_src
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
