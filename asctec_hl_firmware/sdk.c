@@ -638,23 +638,47 @@ void predictEkfState(void)
   ang_vel[1] = ((real32_T)LL_1khz_attitude_data.angvel_pitch) * ASCTEC_OMEGA_TO_SI;
   ang_vel[2] = -((real32_T)LL_1khz_attitude_data.angvel_yaw) * ASCTEC_OMEGA_TO_SI;
 
-  ekf_dt = (real32_T)(timestamp - last_time) * 1.0e-6;
+  int64_t idt = timestamp - last_time;
+  ekf_dt = (real32_T)idt * 1.0e-6;
   last_time = timestamp;
 
-  autogen_ekf_propagation(ekf_last_state, acc, ang_vel, /*ekf_dt*/0.001, ekf_current_state);
+  autogen_ekf_propagation(ekf_last_state, acc, ang_vel, ekf_dt, ekf_current_state);
 
   extPosition.bitfield = EXT_POSITION_BYPASS_FILTER;
   extPosition.x = ekf_current_state[0] * 1000;
-  extPosition.y = ekf_current_state[1] * 1000;
-  extPosition.z = ekf_current_state[2] * 1000;
+  extPosition.y = - ekf_current_state[1] * 1000;
+  extPosition.z = - ekf_current_state[2] * 1000;
   extPosition.vX = ekf_current_state[3] * 1000;
-  extPosition.vY = ekf_current_state[4] * 1000;
-  extPosition.vZ = ekf_current_state[5] * 1000;
+  extPosition.vY = - ekf_current_state[4] * 1000;
+  extPosition.vZ = - ekf_current_state[5] * 1000;
 
   real32_T * const q = &ekf_current_state[6];
 
   //get yaw:
-  real32_T yaw = atan2(2.0 * q[2] * q[0] - 2.0 * q[1] * q[3], 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3]);
+  real32_T x = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3];
+  real32_T y = 2.0 * q[2] * q[0] - 2.0 * q[1] * q[3];
+
+  real32_T yaw = 0;
+  real32_T r = 0;
+//  yaw = atan2(y, x);
+
+
+  //alternate atan2
+  real32_T abs_y = fabs(y)+1e-10;      // kludge to prevent 0/0 condition
+  if (x>=0){
+     r = (x - abs_y) / (x + abs_y);
+     yaw = 0.1963 * r*r*r - 0.9817 * r + M_PI/4.0;
+  }
+  else
+  {
+     r = (x + abs_y) / (abs_y - x);
+     yaw = 0.1963 * r*r*r - 0.9817 * r + 3.0*M_PI/4.0;
+  }
+
+  if (y < 0)
+  yaw = -yaw;     // negate if in quad III or IV
+
+
   extPosition.heading = 360000 - (int)(((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0);
 
   extPosition.qualX = 100;
@@ -689,12 +713,10 @@ void predictEkfState(void)
       const real32_T * const qt = ekf_q_tmp;
       const real32_T * const qc = &ekfState.state[6];
 
-//      autogen_mul_quat(ekf_q_tmp, &ekfState.state[6], q);
-
-      q[0] = qt[0]*qc[0] - qt[1]*qc[1] - qt[2]*qc[2] - qt[3]*qc[3];
-      q[1] = qt[0]*qc[1] + qt[1]*qc[0] + qt[2]*qc[3] - qt[3]*qc[2];
-      q[2] = qt[0]*qc[2] + qt[2]*qc[0] - qt[1]*qc[3] + qt[3]*qc[1];
-      q[3] = qt[0]*qc[3] + qt[1]*qc[2] - qt[2]*qc[1] + qt[3]*qc[0];
+      q[0] = qt[0] * qc[0] - qt[1] * qc[1] - qt[2] * qc[2] - qt[3] * qc[3];
+      q[1] = qt[0] * qc[1] + qt[1] * qc[0] + qt[2] * qc[3] - qt[3] * qc[2];
+      q[2] = qt[0] * qc[2] + qt[2] * qc[0] - qt[1] * qc[3] + qt[3] * qc[1];
+      q[3] = qt[0] * qc[3] + qt[1] * qc[2] - qt[2] * qc[1] + qt[3] * qc[0];
 
       // gyro bias
       ekf_current_state[10] += ekfState.state[10];
@@ -727,7 +749,7 @@ void sendEkfState(void)
   ekf_state_out.timestamp = timestamp;
 
   // TODO: smoothing of data to make Nyquist happy ;-)
-  // acceleration, angular velocities, attitude, height, dheight following the ENU convention (x front, y left, z up)
+  // acceleration, angular velocities following the ENU convention (x front, y left, z up)
   ekf_state_out.acc_x = -LL_1khz_attitude_data.acc_x;
   ekf_state_out.acc_y = -LL_1khz_attitude_data.acc_y;
   ekf_state_out.acc_z = -LL_1khz_attitude_data.acc_z;
