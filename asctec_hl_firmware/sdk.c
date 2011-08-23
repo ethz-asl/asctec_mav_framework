@@ -510,8 +510,8 @@ inline void sendStatus(void)
   else if (!(LL_1khz_attitude_data.status2 & 0x1))
     statusData.motors = -1;
 
-  statusData.debug1 = uart0_min_rx_buffer;
-  statusData.debug2 = uart0_min_tx_buffer;
+//  statusData.debug1 = uart0_min_rx_buffer;
+//  statusData.debug2 = uart0_min_tx_buffer;
 
   statusData.state_estimation = config.mode_state_estimation;
   statusData.position_control = config.mode_position_control;
@@ -655,15 +655,15 @@ void predictEkfState(void)
   real32_T * const q = &ekf_current_state[6];
 
   //get yaw:
-  real32_T x = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3];
-  real32_T y = 2.0 * q[2] * q[0] - 2.0 * q[1] * q[3];
-
+  real32_T x = 1.0 - 2.0 * (q[2] * q[2] + q[3] * q[3]);
+  real32_T y = 2.0 * (q[3] * q[0] + q[1] * q[2]);
+//  atan2(2*   (qs(1,:).*qs(4,:)   +   qs(2,:).*qs(3,:)),      1-2*(qs(3,:).^2  +  qs(4,:).^2));
   real32_T yaw = 0;
   real32_T r = 0;
 //  yaw = atan2(y, x);
 
 
-  //alternate atan2
+  //alternate atan2: http://www.dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization
   real32_T abs_y = fabs(y)+1e-10;      // kludge to prevent 0/0 condition
   if (x>=0){
      r = (x - abs_y) / (x + abs_y);
@@ -674,13 +674,16 @@ void predictEkfState(void)
      r = (x + abs_y) / (abs_y - x);
      yaw = 0.1963 * r*r*r - 0.9817 * r + 3.0*M_PI/4.0;
   }
-
   if (y < 0)
   yaw = -yaw;     // negate if in quad III or IV
 
 
   extPosition.heading = 360000 - (int)(((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0);
 
+  statusData.debug1 = extPosition.heading;
+  statusData.debug2 = yaw*180.0/M_PI*1000;
+
+  extPosition.count = sdkLoops;
   extPosition.qualX = 100;
   extPosition.qualY = 100;
   extPosition.qualZ = 100;
