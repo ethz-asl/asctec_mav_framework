@@ -71,10 +71,9 @@ SRCARM += mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
 
-SRCARM += d_ekf/d_ekf_src/ekf/pos_ekf_initialize.c
-SRCARM += d_ekf/d_ekf_src/ekf/pos_ekf_terminate.c
+SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_initialize.c
+SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_terminate.c
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation.c
-SRCARM += d_ekf/d_ekf_src/ekf/autogen_mul_quat.c
 SRCARM += d_ekf/d_ekf_src/ekf/rt_nonfinite.c
 SRCARM += d_ekf/d_ekf_src/ekf/rt_pow32_snf.c
 SRCARM += d_ekf/d_ekf_src/ekf/rtGetInf.c

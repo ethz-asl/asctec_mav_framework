@@ -24,8 +24,3 @@ x_new(1:3) = x_old(1:3) + x_old(4:6)*dt;
 x_new(4:6) = x_old(4:6) + (quat2rot(x_old(7:10))*(acc-x_old(14:16)) - g)*dt;
 
 x_new(11:end) = x_old(11:end);
-
-
-q1=sym('q1', [4 1]); q1 = sym(q1, 'real');
-q2=sym('q2', [4 1]); q2 = sym(q2, 'real');
-q_out = mul_quat(q1, q2);

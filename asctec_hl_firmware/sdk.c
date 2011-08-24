@@ -40,8 +40,7 @@
 #include "hardware.h"
 
 #include <ekf/autogen_ekf_propagation.h>
-#include <ekf/autogen_mul_quat.h>
-#include <ekf/pos_ekf_initialize.h>
+#include <ekf/autogen_ekf_propagation_initialize.h>
 
 struct WO_SDK_STRUCT WO_SDK;
 struct WO_CTRL_INPUT WO_CTRL_Input;
@@ -166,7 +165,7 @@ void sdkInit(void)
   UART0_rxFlush();
   UART0_txFlush();
 
-  pos_ekf_initialize();
+  autogen_ekf_propagation_initialize();
 
   startAutoBaud();
 }
