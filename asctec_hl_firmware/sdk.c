@@ -661,21 +661,20 @@ void predictEkfState(void)
   real32_T r = 0;
 //  yaw = atan2(y, x);
 
-
   //alternate atan2: http://www.dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization
-  real32_T abs_y = fabs(y)+1e-10;      // kludge to prevent 0/0 condition
-  if (x>=0){
-     r = (x - abs_y) / (x + abs_y);
-     yaw = 0.1963 * r*r*r - 0.9817 * r + M_PI/4.0;
+  real32_T abs_y = fabs(y) + 1e-10; // kludge to prevent 0/0 condition
+  if (x >= 0)
+  {
+    r = (x - abs_y) / (x + abs_y);
+    yaw = r * (0.1963 * r * r - 0.9817) + M_PI / 4.0;
   }
   else
   {
-     r = (x + abs_y) / (abs_y - x);
-     yaw = 0.1963 * r*r*r - 0.9817 * r + 3.0*M_PI/4.0;
+    r = (x + abs_y) / (abs_y - x);
+    yaw = r * (0.1963 * r * r - 0.9817) + 3.0 * M_PI / 4.0;
   }
   if (y < 0)
-  yaw = -yaw;     // negate if in quad III or IV
-
+    yaw = -yaw; // negate if in quad III or IV
 
   extPosition.heading = 360000 - (int)(((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0);
 
