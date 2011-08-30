@@ -765,3 +765,16 @@ void sendEkfState(void)
 
   writePacket2Ringbuffer(HLI_PACKET_ID_EKF_STATE, (unsigned char*)&ekf_state_out, sizeof(ekf_state_out));
 }
+
+int float2Int(float x)
+{
+  // TODO: range checking?
+  return x >= 0 ? (int)(x + 0.5) : (int)(x - 0.5);
+}
+
+int float2Short(float x)
+{
+  // TODO: range checking?
+  return x >= 0 ? (short)(x + 0.5) : (short)(x - 0.5);
+}
+
