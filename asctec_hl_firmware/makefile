@@ -71,6 +71,7 @@ SRCARM += mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
 SRCARM += dekf.c
+SRCARM += uart.c
 
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_initialize.c
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_terminate.c
@@ -85,7 +86,7 @@ SRCARMINT = $(TARGET).c
 SRCARMINT += hardware.c
 SRCARMINT += LPC2k_ee.c
 SRCARMINT += system.c
-SRCARMINT += uart.c
+#SRCARMINT += uart.c
 SRCARMINT += uart1.c
 SRCARMINT += syscalls.c
 SRCARMINT += i2c.c
