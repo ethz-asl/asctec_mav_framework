@@ -101,12 +101,12 @@ void DEKF_step(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input, int64_t ti
   autogen_ekf_propagation(self->last_state, self->acc, self->ang_vel, self->dt, self->current_state);
 
   pos_ctrl_input->bitfield = EXT_POSITION_BYPASS_FILTER;
-  pos_ctrl_input->x = self->current_state[0] * 1000;
-  pos_ctrl_input->y = -self->current_state[1] * 1000;
-  pos_ctrl_input->z = -self->current_state[2] * 1000;
-  pos_ctrl_input->vX = self->current_state[3] * 1000;
-  pos_ctrl_input->vY = -self->current_state[4] * 1000;
-  pos_ctrl_input->vZ = -self->current_state[5] * 1000;
+  pos_ctrl_input->x = float2Int(self->current_state[0] * 1000.0);
+  pos_ctrl_input->y = -float2Int(self->current_state[1] * 1000.0);
+  pos_ctrl_input->z = -float2Int(self->current_state[2] * 1000.0);
+  pos_ctrl_input->vX = float2Short(self->current_state[3] * 1000.0);
+  pos_ctrl_input->vY = -float2Short(self->current_state[4] * 1000.0);
+  pos_ctrl_input->vZ = -float2Short(self->current_state[5] * 1000.0);
 
   real32_T * const q = &self->current_state[6];
 
