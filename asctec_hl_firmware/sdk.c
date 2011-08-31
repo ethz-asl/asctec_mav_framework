@@ -50,6 +50,7 @@ struct WO_DIRECT_MOTOR_CONTROL WO_Direct_Motor_Control;
 #include "gpsmath.h"
 
 #include <ert_main.h>
+#include "dekf.h"
 
 // time synchronization
 volatile int64_t timestamp = 0;
@@ -78,14 +79,8 @@ short motor_state = -1;
 short motor_state_count = 0;
 unsigned int sdkLoops = 0;
 
-// ekf variables
-real32_T ekf_current_state[HLI_EKF_STATE_SIZE];
-real32_T ekf_last_state[HLI_EKF_STATE_SIZE];
-real32_T acc[3];
-real32_T ang_vel[3];
-real32_T ekf_dt;
-real32_T ekf_q_tmp[4];
-HLI_EKF_STATE ekf_state_out;
+// dekf variables
+DekfContext dekf;
 
 // set up data structures for receiving data ##################################
 
@@ -113,8 +108,7 @@ PacketInfo *packetSSDKParams;
 HLI_CMD_LL controlEnable;
 PacketInfo *packetControlEnable;
 
-HLI_EKF_STATE ekfState;
-PacketInfo *packetEkfState;
+// EKF state and packet info are defined in dekf.h
 
 HLI_BAUDRATE baudrate;
 PacketInfo *packetBaudrate;
@@ -159,13 +153,13 @@ void sdkInit(void)
   packetControlEnable = registerPacket(HLI_PACKET_ID_CONTROL_ENABLE, &controlEnable);
   packetBaudrate = registerPacket(HLI_PACKET_ID_BAUDRATE, &baudrate);
   packetSubscription = registerPacket(HLI_PACKET_ID_SUBSCRIPTION, &subscription);
-  packetEkfState = registerPacket(HLI_PACKET_ID_EKF_STATE, &ekfState);
   packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &config);
 
   UART0_rxFlush();
   UART0_txFlush();
 
-  autogen_ekf_propagation_initialize();
+  // init dekf, also packet subscription takes place here
+  DEKF_init(&dekf);
 
   startAutoBaud();
 }
@@ -293,7 +287,7 @@ void SDK_mainloop(void)
       extPosition.qualVz = ext_position_update.qualVz;
       break;
     case HLI_MODE_STATE_ESTIMATION_HL_EKF:
-      predictEkfState();
+      DEKF_step(&dekf, &extPosition, timestamp);
       extPositionValid = 1;
       break;
     default:
@@ -413,7 +407,8 @@ void SDK_mainloop(void)
 
   if (checkTxPeriod(subscription.ekf_state))
   {
-    sendEkfState();
+//    sendEkfState();
+    DEKF_sendState(&dekf, timestamp);
   }
 
   UART_send_ringbuffer();
@@ -608,173 +603,3 @@ inline int checkTxPeriod(uint16_t period)
   else
     return sdkLoops % period == 0;
 }
-
-void predictEkfState(void)
-{
-  // conversion from AscTec acceleration values to m/s^2
-  const real32_T ASCTEC_ACC_TO_SI = 9.81e-3;
-
-  // conversion from AscTec turn rates to rad/s
-  const real32_T ASCTEC_OMEGA_TO_SI = 0.015 * M_PI / 180.0;
-
-  static uint64_t last_time = 0;
-
-  static int once = 0;
-  if (once == 0)
-  {
-    ekf_last_state[6] = 1.0;
-    once = 1;
-  }
-
-  int i = 0;
-
-  // bring data to SI units and ENU coordinates
-  acc[0] = -((real32_T)LL_1khz_attitude_data.acc_x) * ASCTEC_ACC_TO_SI;
-  acc[1] = -((real32_T)LL_1khz_attitude_data.acc_y) * ASCTEC_ACC_TO_SI;
-  acc[2] = -((real32_T)LL_1khz_attitude_data.acc_z) * ASCTEC_ACC_TO_SI;
-
-  ang_vel[0] = -((real32_T)LL_1khz_attitude_data.angvel_roll) * ASCTEC_OMEGA_TO_SI;
-  ang_vel[1] = ((real32_T)LL_1khz_attitude_data.angvel_pitch) * ASCTEC_OMEGA_TO_SI;
-  ang_vel[2] = -((real32_T)LL_1khz_attitude_data.angvel_yaw) * ASCTEC_OMEGA_TO_SI;
-
-  int64_t idt = timestamp - last_time;
-  ekf_dt = (real32_T)idt * 1.0e-6;
-  last_time = timestamp;
-
-  autogen_ekf_propagation(ekf_last_state, acc, ang_vel, ekf_dt, ekf_current_state);
-
-  extPosition.bitfield = EXT_POSITION_BYPASS_FILTER;
-  extPosition.x = ekf_current_state[0] * 1000;
-  extPosition.y = - ekf_current_state[1] * 1000;
-  extPosition.z = - ekf_current_state[2] * 1000;
-  extPosition.vX = ekf_current_state[3] * 1000;
-  extPosition.vY = - ekf_current_state[4] * 1000;
-  extPosition.vZ = - ekf_current_state[5] * 1000;
-
-  real32_T * const q = &ekf_current_state[6];
-
-  //get yaw:
-  real32_T x = 1.0 - 2.0 * (q[2] * q[2] + q[3] * q[3]);
-  real32_T y = 2.0 * (q[3] * q[0] + q[1] * q[2]);
-//  atan2(2*   (qs(1,:).*qs(4,:)   +   qs(2,:).*qs(3,:)),      1-2*(qs(3,:).^2  +  qs(4,:).^2));
-  real32_T yaw = 0;
-  real32_T r = 0;
-//  yaw = atan2(y, x);
-
-  //alternate atan2: http://www.dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization
-  real32_T abs_y = fabs(y) + 1e-10; // kludge to prevent 0/0 condition
-  if (x >= 0)
-  {
-    r = (x - abs_y) / (x + abs_y);
-    yaw = r * (0.1963 * r * r - 0.9817) + M_PI / 4.0;
-  }
-  else
-  {
-    r = (x + abs_y) / (abs_y - x);
-    yaw = r * (0.1963 * r * r - 0.9817) + 3.0 * M_PI / 4.0;
-  }
-  if (y < 0)
-    yaw = -yaw; // negate if in quad III or IV
-
-  extPosition.heading = 360000 - (int)(((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0);
-
-  statusData.debug1 = extPosition.heading;
-  statusData.debug2 = yaw*180.0/M_PI*1000;
-
-  extPosition.count = sdkLoops;
-  extPosition.qualX = 100;
-  extPosition.qualY = 100;
-  extPosition.qualZ = 100;
-  extPosition.qualVx = 100;
-  extPosition.qualVy = 100;
-  extPosition.qualVz = 100;
-
-  if (packetEkfState->updated)
-  {
-    packetEkfState->updated = 0;
-    if (ekfState.flag == HLI_EKF_STATE_STATE_CORRECTION)
-    {
-      // correct states
-      // position
-      ekf_current_state[0] += ekfState.state[0];
-      ekf_current_state[1] += ekfState.state[1];
-      ekf_current_state[2] += ekfState.state[2];
-
-      // velocity
-      ekf_current_state[3] += ekfState.state[3];
-      ekf_current_state[4] += ekfState.state[4];
-      ekf_current_state[5] += ekfState.state[5];
-
-      // orientation
-      ekf_q_tmp[0] = q[0];
-      ekf_q_tmp[1] = q[1];
-      ekf_q_tmp[2] = q[2];
-      ekf_q_tmp[3] = q[3];
-
-      const real32_T * const qt = ekf_q_tmp;
-      const real32_T * const qc = &ekfState.state[6];
-
-      q[0] = qt[0] * qc[0] - qt[1] * qc[1] - qt[2] * qc[2] - qt[3] * qc[3];
-      q[1] = qt[0] * qc[1] + qt[1] * qc[0] + qt[2] * qc[3] - qt[3] * qc[2];
-      q[2] = qt[0] * qc[2] + qt[2] * qc[0] - qt[1] * qc[3] + qt[3] * qc[1];
-      q[3] = qt[0] * qc[3] + qt[1] * qc[2] - qt[2] * qc[1] + qt[3] * qc[0];
-
-      // gyro bias
-      ekf_current_state[10] += ekfState.state[10];
-      ekf_current_state[11] += ekfState.state[11];
-      ekf_current_state[12] += ekfState.state[12];
-
-      // acceleration bias
-      ekf_current_state[13] += ekfState.state[13];
-      ekf_current_state[14] += ekfState.state[14];
-      ekf_current_state[15] += ekfState.state[15];
-    }
-    else if (ekfState.flag == HLI_EKF_STATE_INITIALIZATION)
-    {
-      for (i = 0; i < HLI_EKF_STATE_SIZE; i++)
-      {
-        ekf_current_state[i] = ekfState.state[i];
-      }
-    }
-  }
-
-  for (i = 0; i < HLI_EKF_STATE_SIZE; i++)
-  {
-    ekf_last_state[i] = ekf_current_state[i];
-  }
-}
-
-void sendEkfState(void)
-{
-  int i = 0;
-  ekf_state_out.timestamp = timestamp;
-
-  // TODO: smoothing of data to make Nyquist happy ;-)
-  // acceleration, angular velocities following the ENU convention (x front, y left, z up)
-  ekf_state_out.acc_x = -LL_1khz_attitude_data.acc_x;
-  ekf_state_out.acc_y = -LL_1khz_attitude_data.acc_y;
-  ekf_state_out.acc_z = -LL_1khz_attitude_data.acc_z;
-  ekf_state_out.ang_vel_roll = -LL_1khz_attitude_data.angvel_roll;
-  ekf_state_out.ang_vel_pitch = LL_1khz_attitude_data.angvel_pitch;
-  ekf_state_out.ang_vel_yaw = -LL_1khz_attitude_data.angvel_yaw;
-
-  for (i = 0; i < HLI_EKF_STATE_SIZE; i++)
-  {
-    ekf_state_out.state[i] = ekf_current_state[i];
-  }
-
-  writePacket2Ringbuffer(HLI_PACKET_ID_EKF_STATE, (unsigned char*)&ekf_state_out, sizeof(ekf_state_out));
-}
-
-int float2Int(float x)
-{
-  // TODO: range checking?
-  return x >= 0 ? (int)(x + 0.5) : (int)(x - 0.5);
-}
-
-int float2Short(float x)
-{
-  // TODO: range checking?
-  return x >= 0 ? (short)(x + 0.5) : (short)(x - 0.5);
-}
-

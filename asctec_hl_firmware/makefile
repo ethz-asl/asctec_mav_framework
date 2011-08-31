@@ -70,6 +70,7 @@ SRCARM = LL_HL_comm.c
 SRCARM += mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
+SRCARM += dekf.c
 
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_initialize.c
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_terminate.c
@@ -190,6 +191,7 @@ CFLAGS += -O$(OPT)
 CFLAGS += -Wall -Wcast-align -Wimplicit 
 CFLAGS += -Wpointer-arith -Wswitch
 CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+CFLAGS += -Winline
 CFLAGS += -Wa,-adhlns=$(subst $(suffix $<),.lst,$<) 
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 
@@ -200,6 +202,7 @@ INTCFLAGS += -O$(OPTINT)
 INTCFLAGS += -Wall -Wcast-align -Wimplicit 
 INTCFLAGS += -Wpointer-arith -Wswitch
 INTCFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+INTCFLAGS += -Winline
 INTCFLAGS += -Wa,-adhlns=$(subst $(suffix $<),.lst,$<) 
 INTCFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 

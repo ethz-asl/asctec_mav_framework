@@ -77,12 +77,6 @@ inline void predictEkfState(void);
 /// assembles ekf state packet and sends it
 inline void sendEkfState(void);
 
-/// convert float to int with correct rounding
-inline int float2Int(float x);
-
-/// convert float to short with correct rounding
-inline short float2Int(float x);
-
 /// counts ssdk loops
 extern unsigned int sdkLoops;
 
