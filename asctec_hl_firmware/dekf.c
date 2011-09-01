@@ -41,7 +41,7 @@ const real32_T DEKF_ASCTEC_ACC_TO_SI = 9.81e-3;
 // conversion from AscTec turn rates to rad/s
 const real32_T DEKF_ASCTEC_OMEGA_TO_SI = 0.015 * M_PI / 180.0;
 
-void DEKF_init(DekfContext * self){
+void DEKF_init(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input){
   int i;
 
   // init state vector
@@ -53,8 +53,11 @@ void DEKF_init(DekfContext * self){
   self->current_state[6] = 1;  // unit quaternion
 
   self->last_time = 0;
+  self->ctrl_correction_count = 0;
 
   autogen_ekf_propagation_initialize();
+
+  self->pos_ctrl_input = pos_ctrl_input;
 
   self->packet_info = registerPacket(HLI_PACKET_ID_EKF_STATE, &self->state_in);
 }
@@ -81,7 +84,7 @@ void DEKF_sendState(DekfContext * self, int64_t timestamp)
   writePacket2Ringbuffer(HLI_PACKET_ID_EKF_STATE, (unsigned char*)&self->state_out, sizeof(self->state_out));
 }
 
-void DEKF_step(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input, int64_t timestamp)
+void DEKF_step(DekfContext * self, int64_t timestamp)
 {
   int i = 0;
 
@@ -100,30 +103,6 @@ void DEKF_step(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input, int64_t ti
 
   autogen_ekf_propagation(self->last_state, self->acc, self->ang_vel, self->dt, self->current_state);
 
-  pos_ctrl_input->bitfield = EXT_POSITION_BYPASS_FILTER;
-  pos_ctrl_input->x = float2Int(self->current_state[0] * 1000.0);
-  pos_ctrl_input->y = -float2Int(self->current_state[1] * 1000.0);
-  pos_ctrl_input->z = -float2Int(self->current_state[2] * 1000.0);
-  pos_ctrl_input->vX = float2Short(self->current_state[3] * 1000.0);
-  pos_ctrl_input->vY = -float2Short(self->current_state[4] * 1000.0);
-  pos_ctrl_input->vZ = -float2Short(self->current_state[5] * 1000.0);
-
-  real32_T * const q = &self->current_state[6];
-
-  real32_T yaw = yawFromQuaternion(q);
-  pos_ctrl_input->heading = 360000 - (int)(((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0);
-
-  //    statusData.debug1 = pos_ctrl_input->heading;
-  //    statusData.debug2 = yaw*180.0/M_PI*1000;
-
-  //    pos_ctrl_input->count = sdkLoops;
-  pos_ctrl_input->qualX = 100;
-  pos_ctrl_input->qualY = 100;
-  pos_ctrl_input->qualZ = 100;
-  pos_ctrl_input->qualVx = 100;
-  pos_ctrl_input->qualVy = 100;
-  pos_ctrl_input->qualVz = 100;
-
   if (self->packet_info->updated)
   {
     self->packet_info->updated = 0;
@@ -135,8 +114,12 @@ void DEKF_step(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input, int64_t ti
     else if (self->state_in.flag == HLI_EKF_STATE_INITIALIZATION)
     {
       initState(self);
+      self->ctrl_correction_count = 0;
+      writeControllerOutput(self);
     }
   }
+
+  writeControllerOutput(self);
 
   for (i = 0; i < HLI_EKF_STATE_SIZE; i++)
   {
@@ -182,6 +165,67 @@ void correctState(DekfContext * self)
   self->current_state[13] += self->state_in.state[13];
   self->current_state[14] += self->state_in.state[14];
   self->current_state[15] += self->state_in.state[15];
+
+  self->ctrl_correction_count = DEKF_CORRECTION_SMOOTING_LENGTH;
+
+  // pos_ctrl is NED !!!
+  self->ctrl_correction[0] = self->current_state[0] - ((real32_T) self->pos_ctrl_input->x) * 1e-3;
+  self->ctrl_correction[1] = self->current_state[1] - (-(real32_T) self->pos_ctrl_input->y) * 1e-3;
+  self->ctrl_correction[2] = self->current_state[2] - (-(real32_T) self->pos_ctrl_input->z) * 1e-3;
+  self->ctrl_correction[3] = self->current_state[3] - ((real32_T) self->pos_ctrl_input->vX) * 1e-3;
+  self->ctrl_correction[4] = self->current_state[4] - (-(real32_T) self->pos_ctrl_input->vY) * 1e-3;
+  self->ctrl_correction[5] = self->current_state[5] - (-(real32_T) self->pos_ctrl_input->vZ) * 1e-3;
+
+  for(int i=0; i<6; i++){
+    self->ctrl_correction_step[i] = self->ctrl_correction[i] / (real32_T)DEKF_CORRECTION_SMOOTING_LENGTH;
+  }
+//  self->last_correction[i] = self->current_state[i] -
+
+}
+
+void writeControllerOutput(DekfContext * self)
+{
+  if (self->ctrl_correction_count > 0)
+  {
+    for (int i = 0; i < 6; i++)
+    {
+      self->ctrl_correction[i] -= self->ctrl_correction_step[i];
+    }
+    self->ctrl_correction_count--;
+  }
+  else if (self->ctrl_correction_count == 0)
+//  else
+  {
+    for (int i = 0; i < 6; i++)
+    {
+      self->ctrl_correction[i] = 0;
+    }
+    self->ctrl_correction_count--;
+  }
+
+  self->pos_ctrl_input->bitfield = EXT_POSITION_BYPASS_FILTER;
+  self->pos_ctrl_input->x = float2Int((self->current_state[0]-self->ctrl_correction[0]) * 1000.0);
+  self->pos_ctrl_input->y = -float2Int((self->current_state[1]-self->ctrl_correction[1]) * 1000.0);
+  self->pos_ctrl_input->z = -float2Int((self->current_state[2]-self->ctrl_correction[2]) * 1000.0);
+  self->pos_ctrl_input->vX = float2Short((self->current_state[3]-self->ctrl_correction[3]) * 1000.0);
+  self->pos_ctrl_input->vY = -float2Short((self->current_state[4]-self->ctrl_correction[4]) * 1000.0);
+  self->pos_ctrl_input->vZ = -float2Short((self->current_state[5]-self->ctrl_correction[5]) * 1000.0);
+
+  real32_T * const q = &self->current_state[6];
+
+  real32_T yaw = yawFromQuaternion(q);
+  self->pos_ctrl_input->heading = 360000 - (int)(((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0);
+
+  //    statusData.debug1 = pos_ctrl_input->heading;
+  //    statusData.debug2 = yaw*180.0/M_PI*1000;
+
+//      pos_ctrl_input->count = sdkLoops;
+  self->pos_ctrl_input->qualX = 100;
+  self->pos_ctrl_input->qualY = 100;
+  self->pos_ctrl_input->qualZ = 100;
+  self->pos_ctrl_input->qualVx = 100;
+  self->pos_ctrl_input->qualVy = 100;
+  self->pos_ctrl_input->qualVz = 100;
 }
 
 real32_T yawFromQuaternion(const real32_T q[4])

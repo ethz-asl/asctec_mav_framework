@@ -159,7 +159,7 @@ void sdkInit(void)
   UART0_txFlush();
 
   // init dekf, also packet subscription takes place here
-  DEKF_init(&dekf);
+  DEKF_init(&dekf, &extPosition);
 
   startAutoBaud();
 }
@@ -287,7 +287,7 @@ void SDK_mainloop(void)
       extPosition.qualVz = ext_position_update.qualVz;
       break;
     case HLI_MODE_STATE_ESTIMATION_HL_EKF:
-      DEKF_step(&dekf, &extPosition, timestamp);
+      DEKF_step(&dekf, timestamp);
       extPositionValid = 1;
       break;
     default:

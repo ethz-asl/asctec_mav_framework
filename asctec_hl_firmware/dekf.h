@@ -37,6 +37,8 @@
 #include <ekf/rtwtypes.h>
 #include "uart.h"
 
+#define DEKF_CORRECTION_SMOOTING_LENGTH 100
+
 typedef struct
 {
   real32_T current_state[HLI_EKF_STATE_SIZE];
@@ -49,17 +51,23 @@ typedef struct
   HLI_EKF_STATE state_in;
   PacketInfo * packet_info;
   uint64_t last_time;
+  HLI_EXT_POSITION * pos_ctrl_input;
+  real32_T ctrl_correction[6];
+  real32_T ctrl_correction_step[6];
+  int ctrl_correction_count;
 } DekfContext;
 
-void DEKF_init(DekfContext * self);
+void DEKF_init(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input);
 
 void DEKF_sendState(DekfContext * self, int64_t  timestamp);
 
-void DEKF_step(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input, int64_t timestamp);
+void DEKF_step(DekfContext * self, int64_t timestamp);
 
 inline void initState(DekfContext * self);
 
 inline void correctState(DekfContext * self);
+
+inline void writeControllerOutput(DekfContext * self);
 
 inline real32_T yawFromQuaternion(const real32_T q[4]);
 inline void quaternionMultiplication(const real32_T q1[4], const real32_T q2[4], real32_T q[4]);
