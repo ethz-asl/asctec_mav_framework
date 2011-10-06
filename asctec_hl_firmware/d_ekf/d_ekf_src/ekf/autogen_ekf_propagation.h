@@ -3,7 +3,7 @@
  *
  * Embedded MATLAB Coder code generation for function 'autogen_ekf_propagation'
  *
- * C source code generated on: Wed Aug 24 16:49:08 2011
+ * C source code generated on: Wed Aug 24 18:34:48 2011
  *
  */
 
