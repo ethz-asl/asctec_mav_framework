@@ -17,7 +17,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 
-rosbuild_add_executable(gps_fusion src/gps_fusion.cpp src/gps_fusion_node.cpp)
+rosbuild_add_executable(gps_conversion src/gps_conversion.cpp src/gps_conversion_node.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
 

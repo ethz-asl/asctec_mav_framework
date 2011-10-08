@@ -5,13 +5,13 @@
  *      Author: acmarkus
  */
 
-#include "gps_fusion.h"
+#include "gps_conversion.h"
 
 int main(int argc, char** argv){
 
-  ros::init(argc, argv, "gps_fusion");
+  ros::init(argc, argv, "gps_conversion");
 
-  GpsFusion gf;
+  asctec_hl_gps::GpsConversion gf;
 
   ros::spin();
 

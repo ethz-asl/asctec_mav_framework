@@ -5,8 +5,8 @@
  *      Author: acmarkus
  */
 
-#ifndef GPS_FUSION_H_
-#define GPS_FUSION_H_
+#ifndef GPS_CONVERSION_H_
+#define GPS_CONVERSION_H_
 
 #include <ros/ros.h>
 
@@ -16,16 +16,20 @@
 
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <asctec_hl_comm/PositionWithCovarianceStamped.h>
 #include <asctec_hl_comm/mav_imu.h>
 #include <std_srvs/Empty.h>
 #include <Eigen/Eigen>
 
-class GpsFusion
+namespace asctec_hl_gps{
+
+class GpsConversion
 {
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, asctec_hl_comm::mav_imu> GpsImuSyncPolicy;
 private:
   ros::NodeHandle nh_;
   ros::Publisher gps_pose_pub_;
+  ros::Publisher gps_position_pub_;
   ros::ServiceServer zero_height_srv_;
 
   message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_sync_;
@@ -34,7 +38,7 @@ private:
 
   ros::Subscriber gps_sub_;
   ros::Subscriber imu_sub_;
-  geometry_msgs::Point gps_pose_;
+  geometry_msgs::Point gps_position_;
 
   bool have_reference_;
   double ref_latitude_;
@@ -45,6 +49,8 @@ private:
 
   double height_offset_;
   bool set_height_zero_;
+
+  bool use_pressure_height_;
 
   static const double DEG2RAD = M_PI/180.0;
   const Eigen::Quaterniond Q_90_DEG;
@@ -61,7 +67,9 @@ private:
 
 
 public:
-  GpsFusion();
+  GpsConversion();
 };
+
+} // end namespace
 
 #endif /* GPS_FUSION_H_ */
