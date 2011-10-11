@@ -330,6 +330,7 @@ __attribute__((packed))
   uint16_t mode_state_estimation;
   uint16_t mode_position_control;
   uint16_t position_control_axis_enable;
+  uint16_t battery_warning_voltage;
 }HLI_CONFIG;
 
 /// packet for SSDK status

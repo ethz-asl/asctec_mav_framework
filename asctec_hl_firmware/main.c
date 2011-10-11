@@ -149,7 +149,7 @@ int main(void)
 
       vbat = vbat1;
 
-      if (vbat < BATTERY_WARNING_VOLTAGE) //decide if it's really an empty battery
+      if (vbat < hli_config.battery_warning_voltage /*BATTERY_WARNING_VOLTAGE*/) //decide if it's really an empty battery
       {
         if (bat_warning < ControllerCyclesPerSecond * 2)
           bat_warning++;
@@ -168,7 +168,7 @@ int main(void)
       }
       if (bat_warning_enabled)
       {
-        if (bat_cnt > ((vbat - 9000) / BAT_DIV))
+        if (bat_cnt > ((1000 - hli_config.battery_warning_voltage + vbat)/10))
           beeper(ON);//IOSET1 = (1<<17);	//Beeper on
         else
           beeper(OFF);//IOCLR1 = (1<<17);		//Beeper off

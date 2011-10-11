@@ -87,6 +87,8 @@ extern HLI_EXT_POSITION extPosition;
 extern HLI_CMD_HL extPositionCmd;
 extern HLI_STATUS statusData;
 
+extern HLI_CONFIG hli_config;
+
 /// current time. Gets incremented by timer0 and gets corrected by synchronizeTime().
 extern volatile int64_t timestamp;
 

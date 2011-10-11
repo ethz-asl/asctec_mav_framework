@@ -673,7 +673,7 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
 void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint32_t level)
 {
 
-  if (level & asctec_hl_interface::HLInterface_MODE)
+  if (level & asctec_hl_interface::HLInterface_HLI_CONFIG)
   {
     /** bits for the control byte:
      * bit 0: pitch control enabled
@@ -718,6 +718,8 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
     else
       cfg.mode_state_estimation = HLI_MODE_STATE_ESTIMATION_OFF;
 
+    cfg.battery_warning_voltage = static_cast<uint16_t>(config.battery_warning * 1000); // convert to mV
+
     if(!comm_->sendPacketAck(HLI_PACKET_ID_CONFIG, cfg)){
       config.enable_x = config_.enable_x;
       config.enable_y = config_.enable_y;
@@ -725,6 +727,7 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
       config.enable_yaw = config_.enable_yaw;
       config.position_control = config_.position_control;
       config.state_estimation = config_.state_estimation;
+      config.battery_warning = config_.battery_warning;
     }
   }
 
