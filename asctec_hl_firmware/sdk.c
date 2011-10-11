@@ -70,6 +70,7 @@ HLI_IMU imuData;
 HLI_RCDATA rcData;
 HLI_GPS gpsData;
 HLI_SSDK_STATUS ssdk_status;
+HLI_MAG mag_data;
 
 // declared external in sdk.h, so that the ssdk can access it
 HLI_EXT_POSITION extPosition;
@@ -396,7 +397,7 @@ void SDK_mainloop(void)
   if ((sdkLoops + 20) % 500 == 0)
   {
     sendStatus();
-    writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_STATUS, (unsigned char*)&ssdk_status, sizeof(ssdk_status));
+//    writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_STATUS, (unsigned char*)&ssdk_status, sizeof(ssdk_status));
   }
 
   if (checkTxPeriod(subscription.ssdk_debug))
@@ -410,6 +411,13 @@ void SDK_mainloop(void)
 //    sendEkfState();
     DEKF_sendState(&dekf, timestamp);
   }
+
+  if (checkTxPeriod(subscription.mag))
+  {
+    sendMagData();
+  }
+
+//
 
   UART_send_ringbuffer();
 
@@ -525,6 +533,16 @@ inline void sendRcData(void)
     rcData.channel[i] = RO_RC_Data.channel[i];
 
   writePacket2Ringbuffer(HLI_PACKET_ID_RC, (unsigned char*)&rcData, sizeof(rcData));
+}
+
+inline void sendMagData(void)
+{
+  mag_data.timestamp = timestamp;
+  mag_data.x = LL_1khz_attitude_data.mag_x;
+  mag_data.y = LL_1khz_attitude_data.mag_y;
+  mag_data.z = LL_1khz_attitude_data.mag_z;
+
+  writePacket2Ringbuffer(HLI_PACKET_ID_MAG, (unsigned char*)&mag_data, sizeof(mag_data));
 }
 
 inline void synchronizeTime()

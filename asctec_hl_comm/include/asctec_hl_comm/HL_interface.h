@@ -57,6 +57,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HLI_PACKET_ID_SSDK_STATUS               0x10    ///< SSDK status packet
 #define HLI_PACKET_ID_ACK                       0x11    ///< Acknowledge packet
 #define HLI_PACKET_ID_CONFIG                    0x12    ///< Acknowledge packet
+#define HLI_PACKET_ID_MAG                       0x13    ///< Magnetic compass data packet
 
 
 // flight mode defines for communication with LL processor ----------------------------------------------
@@ -319,6 +320,7 @@ __attribute__((packed))
   uint16_t ssdk_debug; ///< debug channels from the ssdk, 200 ms
   uint16_t gps; ///< gps data, 200 ms
   uint16_t ekf_state; ///< pose ekf state, 0 --> set to zero if you don't want to have it
+  uint16_t mag; ///< magnetic compass packet
 }HLI_SUBSCRIPTION;
 
 /// configuration packet for HL processor
@@ -343,5 +345,16 @@ __attribute__((packed))
 {
   uint8_t ack_packet;
 }HLI_ACK;
+
+/// packet with magnetic compass readings
+typedef struct
+__attribute__((packed))
+{
+  int64_t timestamp;
+
+  int16_t x;
+  int16_t y;
+  int16_t z;
+}HLI_MAG;
 
 #endif

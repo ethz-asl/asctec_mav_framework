@@ -49,6 +49,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   gps_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("gps", 1);
   rc_pub_ = nh_.advertise<asctec_hl_comm::mav_rcdata> ("rcdata", 1);
   status_pub_ = nh_.advertise<asctec_hl_comm::mav_status> ("status", 1);
+  mag_pub_ = nh_.advertise<geometry_msgs::Vector3Stamped> ("mag", 1);
 
   control_sub_ = nh_.subscribe("control", 1, &HLInterface::controlCmdCallback, this);
 
@@ -73,6 +74,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   comm_->registerCallback(HLI_PACKET_ID_GPS, &HLInterface::processGpsData, this);
   comm_->registerCallback(HLI_PACKET_ID_STATUS, &HLInterface::processStatusData, this);
   comm_->registerCallback(HLI_PACKET_ID_TIMESYNC, &HLInterface::processTimeSyncData, this);
+  comm_->registerCallback(HLI_PACKET_ID_MAG, &HLInterface::processMagData, this);
 }
 
 HLInterface::~HLInterface()
@@ -379,6 +381,24 @@ void HLInterface::processTimeSyncData(uint8_t * buf, uint32_t bufLength)
 
   // warn if imu time is too far away from pc time. At low baudrates, the IMU will take longer to sync.
   ROS_WARN_STREAM_COND(std::abs(status_.timesync_offset) > 0.002, "imu time is off by "<<status_.timesync_offset * 1e3 <<" ms");
+}
+
+void HLInterface::processMagData(uint8_t * buf, uint32_t bufLength)
+{
+  HLI_MAG* data = (HLI_MAG*)buf;
+  static int seq = 0;
+  geometry_msgs::Vector3StampedPtr msg(new geometry_msgs::Vector3Stamped);
+
+  msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+  msg->header.frame_id = frame_id_;
+  msg->header.seq = seq;
+
+  msg->vector.x = data->x;
+  msg->vector.y = data->y;
+  msg->vector.z = data->z;
+
+  seq++;
+  mag_pub_.publish(msg);
 }
 
 bool HLInterface::cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req,
@@ -716,6 +736,7 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
     ps.gps = helper::rateToPeriod(config.packet_rate_gps);
     ps.ssdk_debug = helper::rateToPeriod(config.packet_rate_ssdk_debug);
     ps.ekf_state = helper::rateToPeriod(config.packet_rate_ekf_state);
+    ps.mag = helper::rateToPeriod(config.packet_rate_mag);
 
     diag_imu_freq_min_ = 0.95 * config.packet_rate_imu;
     diag_imu_freq_max_ = 1.05 * config.packet_rate_imu;
@@ -726,6 +747,7 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
       config.packet_rate_gps = config_.packet_rate_gps;
       config.packet_rate_ssdk_debug = config_.packet_rate_ssdk_debug;
       config.packet_rate_ekf_state = config_.packet_rate_ekf_state;
+      config.packet_rate_mag = config_.packet_rate_mag;
     }
   }
 
