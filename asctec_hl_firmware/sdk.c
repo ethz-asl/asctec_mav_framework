@@ -112,8 +112,8 @@ PacketInfo *packetBaudrate;
 HLI_SUBSCRIPTION subscription;
 PacketInfo *packetSubscription;
 
-// config packet
-HLI_CONFIG config;
+// config packet, declared external in sdk.h
+HLI_CONFIG hli_config;
 PacketInfo *packetConfig;
 
 // ######################################################################################
@@ -127,9 +127,10 @@ void sdkInit(void)
 
   extPositionValid = 0;
 
-  config.mode_position_control = HLI_MODE_POSCTRL_OFF;
-  config.mode_state_estimation = HLI_MODE_STATE_ESTIMATION_OFF;
-  config.position_control_axis_enable = 0;
+  hli_config.mode_position_control = HLI_MODE_POSCTRL_OFF;
+  hli_config.mode_state_estimation = HLI_MODE_STATE_ESTIMATION_OFF;
+  hli_config.position_control_axis_enable = 0;
+  hli_config.battery_warning_voltage = BATTERY_WARNING_VOLTAGE;
 
   // set default packet rates
   subscription.imu = HLI_DEFAULT_PERIOD_IMU;
@@ -149,7 +150,7 @@ void sdkInit(void)
   packetBaudrate = registerPacket(HLI_PACKET_ID_BAUDRATE, &baudrate);
   packetSubscription = registerPacket(HLI_PACKET_ID_SUBSCRIPTION, &subscription);
   packetEkfState = registerPacket(HLI_PACKET_ID_EKF_STATE, &ekfState);
-  packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &config);
+  packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &hli_config);
 
   UART0_rxFlush();
   UART0_txFlush();
@@ -241,7 +242,7 @@ void SDK_mainloop(void)
 
   // decide which position/state input we take for position control
   // SSDK operates in NED --> convert from ENU
-  switch(config.mode_state_estimation){
+  switch(hli_config.mode_state_estimation){
     case HLI_MODE_STATE_ESTIMATION_HL_SSDK:
       extPositionValid = 1;
       extPosition.bitfield = 0;
@@ -296,15 +297,15 @@ void SDK_mainloop(void)
   { // motors are either stopped or running --> normal operation
 
     // commands are always written to LL by the Matlab controller, decide if we need to overwrite them
-    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && config.mode_position_control == HLI_MODE_POSCTRL_HL)
+    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && hli_config.mode_position_control == HLI_MODE_POSCTRL_HL)
     {
-      WO_CTRL_Input.ctrl = config.position_control_axis_enable;
+      WO_CTRL_Input.ctrl = hli_config.position_control_axis_enable;
       WO_SDK.ctrl_enabled = 1;
     }
 
-    else if (cmdLLValid > 0 && (config.mode_position_control == HLI_MODE_POSCTRL_LL || config.mode_position_control == HLI_MODE_POSCTRL_OFF))
+    else if (cmdLLValid > 0 && (hli_config.mode_position_control == HLI_MODE_POSCTRL_LL || hli_config.mode_position_control == HLI_MODE_POSCTRL_OFF))
     {
-      writeCommand(cmdLL.x, cmdLL.y, cmdLL.yaw, cmdLL.z, config.position_control_axis_enable, 1);
+      writeCommand(cmdLL.x, cmdLL.y, cmdLL.yaw, cmdLL.z, hli_config.position_control_axis_enable, 1);
     }
     else
     {
@@ -483,8 +484,8 @@ inline void sendStatus(void)
   statusData.debug1 = uart0_min_rx_buffer;
   statusData.debug2 = uart0_min_tx_buffer;
 
-  statusData.state_estimation = config.mode_state_estimation;
-  statusData.position_control = config.mode_position_control;
+  statusData.state_estimation = hli_config.mode_state_estimation;
+  statusData.position_control = hli_config.mode_position_control;
 
   statusData.rx_packets = UART_rxPacketCount;
   statusData.rx_packets_good = UART_rxGoodPacketCount;
