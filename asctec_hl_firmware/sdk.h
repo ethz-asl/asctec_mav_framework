@@ -57,6 +57,9 @@ inline void sendStatus(void);
 /// assembles rc packet and sends it
 inline void sendRcData(void);
 
+/// assembles magnetic compass data packet and sends it
+inline void sendMagData(void);
+
 /// adjusts HLP time to host PC time
 /***
  * Timestamped packets get send around every 2 s to average the transmission delay.

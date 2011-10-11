@@ -43,6 +43,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <asctec_hl_comm/mav_status.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <geometry_msgs/Vector3Stamped.h>
 
 // service includes
 #include <asctec_hl_comm/MavCtrlSrv.h>
@@ -77,6 +78,7 @@ private:
   ros::Publisher imu_pub_; ///< publisher for custom asctec_hl_comm/mav_imu message
   ros::Publisher rc_pub_;
   ros::Publisher status_pub_;
+  ros::Publisher mag_pub_;
   ros::Subscriber control_sub_;
 
   ros::ServiceServer motor_srv_;
@@ -89,6 +91,7 @@ private:
   void processStatusData(uint8_t * buf, uint32_t bufLength);
   void processTimeSyncData(uint8_t * buf, uint32_t bufLength);
   void processPoseEKFData(uint8_t * buf, uint32_t bufLength);
+  void processMagData(uint8_t * buf, uint32_t bufLength);
 
   /// service to start/stop motors
   bool cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req, asctec_hl_comm::mav_ctrl_motors::Response &resp);
