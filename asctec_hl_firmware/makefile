@@ -66,8 +66,8 @@ TARGET = main
 # List C source files here which must be compiled in ARM-Mode.
 # use file-extension c for "c-only"-files
 #SRCARM = $(TARGET).c
-SRCARM = LL_HL_comm.c
-SRCARM += mymath.c
+#SRCARM = LL_HL_comm.c
+SRCARM = mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
 SRCARM += dekf.c
@@ -94,6 +94,7 @@ SRCARMINT += Common_WinARM/src/irq.c
 SRCARMINT += Common_WinARM/src/interrupt_utils.c
 SRCARMINT += adc.c
 SRCARMINT += ssp.c
+SRCARMINT += LL_HL_comm.c
 
 
 # List C++ source files here.
