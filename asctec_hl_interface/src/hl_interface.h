@@ -123,12 +123,6 @@ private:
   int16_t gps_status_;
   int16_t gps_satellites_used_;
 
-
-  double roll_;
-  double pitch_;
-  double yaw_;
-  double height_;
-  double differential_height_;
   double angular_velocity_variance_;
   double linear_acceleration_variance_;
   asctec_hl_comm::mav_status status_;

@@ -33,8 +33,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "helper.h"
 
 HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
-  nh_(nh), pnh_("~"), comm_(comm), diag_updater_(),
-      diag_imu_freq_(diagnostic_updater::FrequencyStatusParam(&diag_imu_freq_min_, &diag_imu_freq_max_, 0, 5))
+  nh_(nh), pnh_("~"), comm_(comm), gps_status_(sensor_msgs::NavSatStatus::STATUS_NO_FIX), gps_satellites_used_(0),
+      diag_updater_(), diag_imu_freq_(diagnostic_updater::FrequencyStatusParam(&diag_imu_freq_min_,
+                                                                               &diag_imu_freq_max_, 0, 5))
 {
   pnh_.param("frame_id", frame_id_, std::string("fcu"));
   pnh_.param("k_stick", k_stick_, 25);
@@ -88,15 +89,15 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   static int seq = 0;
   diag_imu_freq_.tick();
 
-  roll_ = helper::asctecAttitudeToSI(data->ang_roll);
-  pitch_ = helper::asctecAttitudeToSI(data->ang_pitch);
-  yaw_ = helper::asctecAttitudeToSI(data->ang_yaw);
+  double roll = helper::asctecAttitudeToSI(data->ang_roll);
+  double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
+  double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
 
-  if (yaw_ > M_PI)
-    yaw_ -= 2 * M_PI;
+  if (yaw > M_PI)
+    yaw -= 2 * M_PI;
 
-  height_ = data->height * 0.001;
-  differential_height_ = data->differential_height * 0.001;
+  double height = data->height * 0.001;
+  double differential_height = data->differential_height * 0.001;
 
   uint32_t subs_imu = imu_pub_.getNumSubscribers();
   uint32_t subs_imu_ros = imu_ros_pub_.getNumSubscribers();
@@ -104,7 +105,7 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   if (subs_imu > 0 || subs_imu_ros > 0)
   {
     geometry_msgs::Quaternion q;
-    helper::angle2quaternion(roll_, pitch_, yaw_, &q.w, &q.x, &q.y, &q.z);
+    helper::angle2quaternion(roll, pitch, yaw, &q.w, &q.x, &q.y, &q.z);
 
     if (subs_imu > 0)
     {
@@ -119,8 +120,8 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
       msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
       msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
       msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
-      msg->differential_height = differential_height_;
-      msg->height = height_;
+      msg->differential_height = differential_height;
+      msg->height = height;
       msg->orientation = q;
 
       imu_pub_.publish(msg);

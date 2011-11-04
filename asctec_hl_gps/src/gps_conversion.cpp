@@ -20,8 +20,8 @@ GpsConversion::GpsConversion() :
   imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCallback, this);
   gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsConversion::gpsCallback, this);
 
-  gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("gps_pose", 1);
-  gps_position_pub_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("gps_position", 1);
+  gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("fcu/gps_pose", 1);
+  gps_position_pub_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("fcu/gps_position", 1);
   zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
 
   pnh.param("use_pressure_height", use_pressure_height_, false);
