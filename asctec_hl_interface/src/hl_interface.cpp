@@ -48,6 +48,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   imu_pub_ = nh_.advertise<asctec_hl_comm::mav_imu> ("imu_custom", 1);
   imu_ros_pub_ = nh_.advertise<sensor_msgs::Imu> ("imu", 1);
   gps_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("gps", 1);
+  gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustom> ("gps_custom", 1);
   rc_pub_ = nh_.advertise<asctec_hl_comm::mav_rcdata> ("rcdata", 1);
   status_pub_ = nh_.advertise<asctec_hl_comm::mav_status> ("status", 1);
   mag_pub_ = nh_.advertise<geometry_msgs::Vector3Stamped> ("mag", 1);
@@ -155,6 +156,7 @@ void HLInterface::processGpsData(uint8_t * buf, uint32_t bufLength)
   HLI_GPS* data = (HLI_GPS*)buf;
   static int seq = 0;
   sensor_msgs::NavSatFixPtr gps_fix(new sensor_msgs::NavSatFix);
+  asctec_hl_comm::GpsCustomPtr gps_custom(new asctec_hl_comm::GpsCustom);
 
   gps_fix->header.stamp = ros::Time(((double)data->timestamp) * 1.0e-6);
   gps_fix->header.seq = seq;
@@ -181,12 +183,31 @@ void HLInterface::processGpsData(uint8_t * buf, uint32_t bufLength)
   else
     gps_fix->status.status = sensor_msgs::NavSatStatus::STATUS_NO_FIX;
 
+  gps_custom->header = gps_fix->header;
+  gps_custom->status = gps_fix->status;
+  gps_custom->longitude = gps_fix->longitude;
+  gps_custom->latitude = gps_fix->latitude;
+  gps_custom->altitude = gps_fix->altitude;
+  gps_custom->position_covariance = gps_fix->position_covariance;
+  gps_custom->position_covariance_type = gps_fix->position_covariance_type;
+
+  gps_custom->velocity_x = static_cast<double> (data->speedX) * 1.0e-3;
+  gps_custom->velocity_y = static_cast<double> (data->speedY) * 1.0e-3;
+
+  gps_custom->pressure_height = static_cast<double>(data->pressure_height) * 1.0e-3;
+
+  // TODO: check covariance
+  double var_vel = static_cast<double> (data->speedAccuracy) * 1.0e-3 / 3.0; // accuracy, 3 sigma bound ???
+  var_vel *= var_vel;
+  gps_custom->velocity_covariance[0] = gps_custom->velocity_covariance[3] = var_vel;
+
   // copy this for the other status message
   gps_status_ = gps_fix->status.status;
   gps_satellites_used_ = data->numSatellites;
 
   seq++;
   gps_pub_.publish(gps_fix);
+  gps_custom_pub_.publish(gps_custom);
 }
 
 void HLInterface::processRcData(uint8_t * buf, uint32_t bufLength)

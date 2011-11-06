@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <asctec_hl_comm/mav_ctrl.h>
 #include <asctec_hl_comm/mav_imu.h>
 #include <asctec_hl_comm/mav_status.h>
+#include <asctec_hl_comm/GpsCustom.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
@@ -74,6 +75,7 @@ private:
   std::string frame_id_;
 
   ros::Publisher gps_pub_;
+  ros::Publisher gps_custom_pub_;
   ros::Publisher imu_ros_pub_; ///< publisher for sensor_msgs/Imu message
   ros::Publisher imu_pub_; ///< publisher for custom asctec_hl_comm/mav_imu message
   ros::Publisher rc_pub_;

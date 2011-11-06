@@ -483,6 +483,7 @@ inline void sendGpsData(void)
   gpsData.longitude = GPS_Data.longitude;
   gpsData.heading = LL_1khz_attitude_data.angle_yaw;
   gpsData.height = GPS_Data.height;
+  gpsData.pressure_height = LL_1khz_attitude_data.height;
   gpsData.speedX = GPS_Data.speed_x;
   gpsData.speedY = GPS_Data.speed_y;
   gpsData.horizontalAccuracy = GPS_Data.horizontal_accuracy;

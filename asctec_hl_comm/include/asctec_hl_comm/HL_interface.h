@@ -142,6 +142,9 @@ __attribute__((packed))
   /// height [mm]
   uint32_t height;
 
+  /// pressure height [mm]
+  uint32_t pressure_height;
+
   /// speed in x (E/W) and y(N/S) in mm/s
   int32_t speedX;
   int32_t speedY;
