@@ -88,7 +88,7 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, con
     msg2->position = wgs84ToEnu(gps->latitude, gps->longitude, ref_altitude_);
     msg2->position.z = imu->height - height_offset_;
 
-    gps_position_pub_.publish(msg);
+    gps_position_pub2_.publish(msg2);
   }
 }
 
