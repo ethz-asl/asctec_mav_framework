@@ -564,24 +564,24 @@ inline void synchronizeTime()
 
     if (timeOffset > 0)
     {
-      time_step = 4000 / timeOffset;
-      time_correction = 1;
+      time_step = 2000 / timeOffset;
+      time_correction = 2;
     }
     else if (timeOffset < 0)
     {
-      time_step = -4000 / timeOffset;
-      time_correction = -1;
+      time_step = -2000 / timeOffset;
+      time_correction = -2;
     }
     else
     {
-      time_step = 4000;
+      time_step = 2000;
       time_correction = 0;
     }
 
     packetTimeSync->updated = 0;
   }
 
-  // correct timestamp every step sdkloops by one us
+  // correct timestamp every time_step sdkloops by time_correction us
   if (sdkLoops % time_step == 0)
   {
     timestamp += time_correction;
