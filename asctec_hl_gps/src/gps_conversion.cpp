@@ -22,7 +22,6 @@ GpsConversion::GpsConversion() :
 
   gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("fcu/gps_pose", 1);
   gps_position_pub_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("fcu/gps_position", 1);
-  gps_position_pub2_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("fcu/gps_position2", 1);
   zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
 
   pnh.param("use_pressure_height", use_pressure_height_, false);
@@ -81,14 +80,6 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, con
     msg->position.z = imu->height - height_offset_;
 
     gps_position_pub_.publish(msg);
-
-    // experimental
-    asctec_hl_comm::PositionWithCovarianceStampedPtr msg2(new asctec_hl_comm::PositionWithCovarianceStamped);
-    msg2->header = gps->header;
-    msg2->position = wgs84ToEnu(gps->latitude, gps->longitude, ref_altitude_);
-    msg2->position.z = imu->height - height_offset_;
-
-    gps_position_pub2_.publish(msg2);
   }
 }
 

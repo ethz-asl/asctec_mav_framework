@@ -30,7 +30,6 @@ private:
   ros::NodeHandle nh_;
   ros::Publisher gps_pose_pub_;
   ros::Publisher gps_position_pub_;
-  ros::Publisher gps_position_pub2_;
   ros::ServiceServer zero_height_srv_;
 
   message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_sync_;
