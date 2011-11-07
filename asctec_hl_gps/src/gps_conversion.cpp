@@ -19,9 +19,11 @@ GpsConversion::GpsConversion() :
 
   imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCallback, this);
   gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsConversion::gpsCallback, this);
+  gps_custom_sub_ = nh.subscribe("fcu/gps_custom", 1, &GpsConversion::gpsCustomCallback, this);
 
   gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("fcu/gps_pose", 1);
   gps_position_pub_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("fcu/gps_position", 1);
+  gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustomCartesian> ("fcu/gps_position_custom", 1);
   zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
 
   pnh.param("use_pressure_height", use_pressure_height_, false);
@@ -85,6 +87,12 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, con
 
 void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
 {
+  if (!have_reference_)
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
+    return;
+  }
+
   if (gps->status.status == sensor_msgs::NavSatStatus::STATUS_FIX){
     gps_position_ = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
     if (!use_pressure_height_)
@@ -92,12 +100,41 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
       asctec_hl_comm::PositionWithCovarianceStampedPtr msg(new asctec_hl_comm::PositionWithCovarianceStamped);
       msg->header = gps->header;
       msg->position = gps_position_;
+      msg->covariance = gps->position_covariance;
       gps_position_pub_.publish(msg);
     }
   }
   else{
     gps_position_.x = gps_position_.y = gps_position_.z = 0;
   }
+}
+
+void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps)
+{
+  if (!have_reference_)
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
+    return;
+  }
+
+  if (gps->status.status == sensor_msgs::NavSatStatus::STATUS_FIX){
+    geometry_msgs::Point pos = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
+
+      asctec_hl_comm::GpsCustomCartesianPtr msg(new asctec_hl_comm::GpsCustomCartesian);
+      msg->header = gps->header;
+      msg->position = pos;
+      msg->position_covariance = gps->position_covariance;
+      msg->velocity_x = gps->velocity_x;
+      msg->velocity_y = gps->velocity_y;
+      msg->velocity_covariance = gps->velocity_covariance;
+
+      if (use_pressure_height_)
+      {
+        msg->position.z = gps->pressure_height - height_offset_;
+      }
+      gps_custom_pub_.publish(msg);
+  }
+
 }
 
 void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu){
