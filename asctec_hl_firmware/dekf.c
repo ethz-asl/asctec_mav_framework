@@ -69,11 +69,11 @@ void DEKF_sendState(DekfContext * self, int64_t timestamp)
 
   // TODO: smoothing of data to make Nyquist happy ;-)
   // acceleration, angular velocities following the ENU convention (x front, y left, z up)
-  self->state_out.acc_x = -LL_1khz_attitude_data.acc_x;
+  self->state_out.acc_x = LL_1khz_attitude_data.acc_x;
   self->state_out.acc_y = -LL_1khz_attitude_data.acc_y;
   self->state_out.acc_z = -LL_1khz_attitude_data.acc_z;
-  self->state_out.ang_vel_roll = -LL_1khz_attitude_data.angvel_roll;
-  self->state_out.ang_vel_pitch = LL_1khz_attitude_data.angvel_pitch;
+  self->state_out.ang_vel_roll = LL_1khz_attitude_data.angvel_roll;
+  self->state_out.ang_vel_pitch = -LL_1khz_attitude_data.angvel_pitch;
   self->state_out.ang_vel_yaw = -LL_1khz_attitude_data.angvel_yaw;
 
   for (i = 0; i < HLI_EKF_STATE_SIZE; i++)

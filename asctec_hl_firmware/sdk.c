@@ -458,14 +458,15 @@ inline void sendImuData(void)
 
   // TODO: smoothing of data to make Nyquist happy ;-)
   // acceleration, angular velocities, attitude, height, dheight following the ENU convention (x front, y left, z up)
-  imuData.acc_x = -LL_1khz_attitude_data.acc_x;
+  // LL firmware 2012 is NED now
+  imuData.acc_x = LL_1khz_attitude_data.acc_x;
   imuData.acc_y = -LL_1khz_attitude_data.acc_y;
   imuData.acc_z = -LL_1khz_attitude_data.acc_z;
-  imuData.ang_vel_roll = -LL_1khz_attitude_data.angvel_roll;
-  imuData.ang_vel_pitch = LL_1khz_attitude_data.angvel_pitch;
+  imuData.ang_vel_roll = LL_1khz_attitude_data.angvel_roll;
+  imuData.ang_vel_pitch = -LL_1khz_attitude_data.angvel_pitch;
   imuData.ang_vel_yaw = -LL_1khz_attitude_data.angvel_yaw;
-  imuData.ang_roll = -LL_1khz_attitude_data.angle_roll;
-  imuData.ang_pitch = LL_1khz_attitude_data.angle_pitch;
+  imuData.ang_roll = LL_1khz_attitude_data.angle_roll;
+  imuData.ang_pitch = -LL_1khz_attitude_data.angle_pitch;
   imuData.ang_yaw = 36000 - LL_1khz_attitude_data.angle_yaw;
   imuData.differential_height = LL_1khz_attitude_data.dheight;
   imuData.height = LL_1khz_attitude_data.height;
