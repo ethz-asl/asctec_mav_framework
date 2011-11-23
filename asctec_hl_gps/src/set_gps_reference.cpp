@@ -40,7 +40,7 @@ void gpsCb(const sensor_msgs::NavSatFixConstPtr & msg){
     nh.setParam("/gps_ref_longitude", g_lon_ref);
     nh.setParam("/gps_ref_altitude", g_alt_ref);
 
-    ROS_INFO("final ref position: %f %f %f", g_lat_ref, g_lon_ref, g_alt_ref);
+    ROS_INFO("final reference position: %f %f %f", g_lat_ref, g_lon_ref, g_alt_ref);
 
     ros::shutdown();
     return;
@@ -56,7 +56,16 @@ int main(int argc, char** argv){
   g_lat_ref = 0;
   g_lon_ref = 0;
   g_alt_ref = 0;
-  g_its = 50;
+
+  ros::V_string args;
+  ros::removeROSArgs(argc, argv, args);
+
+  if(args.size() > 1)
+    g_its = atoi(args[1].c_str());
+  else
+    g_its = 50;
+
+  ROS_INFO("taking %d measurements\n",g_its);
 
   ros::Subscriber gps_sub = nh.subscribe("gps", 1, &gpsCb);
 
