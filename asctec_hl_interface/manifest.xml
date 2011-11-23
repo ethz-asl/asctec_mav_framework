@@ -17,6 +17,7 @@
   <depend package="asctec_hl_comm"/>
   <depend package="actionlib" />
   <depend package="diagnostic_updater" />
+  <depend package="sensor_fusion_core" />
   
   <export>
     <rosdoc config="rosdoc.yaml" />
