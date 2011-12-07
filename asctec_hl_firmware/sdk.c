@@ -524,17 +524,17 @@ inline void synchronizeTime()
 
     if (timeOffset > 0)
     {
-      time_step = 4000 / timeOffset;
+      time_step = 1000 / timeOffset;
       time_correction = 1;
     }
     else if (timeOffset < 0)
     {
-      time_step = -4000 / timeOffset;
+      time_step = -1000 / timeOffset;
       time_correction = -1;
     }
     else
     {
-      time_step = 4000;
+      time_step = 1000;
       time_correction = 0;
     }
 
