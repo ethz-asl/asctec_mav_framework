@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo " ### plotting acceleration x y z [m/s^2] ###"
-rxplot $1/fcu/imu/acceleration/x:y:z -b 10
+rxplot $1/fcu/imu/linear_acceleration/x:y:z -b 10
