@@ -7,12 +7,13 @@
 
 #include "gps_conversion.h"
 
-namespace asctec_hl_gps{
+namespace asctec_hl_gps
+{
 
 GpsConversion::GpsConversion() :
-  nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1), gps_imu_sync_(GpsImuSyncPolicy(10),
-                                                                                          gps_sub_sync_, imu_sub_sync_),
-      have_reference_(false), set_height_zero_(false),Q_90_DEG(sqrt(2.0)/2.0, 0, 0, sqrt(2.0)/2.0)
+  nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1),
+      gps_imu_sync_(GpsImuSyncPolicy(10), gps_sub_sync_, imu_sub_sync_), have_reference_(false),
+      set_height_zero_(false), Q_90_DEG(sqrt(2.0) / 2.0, 0, 0, sqrt(2.0) / 2.0)
 {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
@@ -28,7 +29,7 @@ GpsConversion::GpsConversion() :
 
   pnh.param("use_pressure_height", use_pressure_height_, false);
 
-  if(use_pressure_height_)
+  if (use_pressure_height_)
   {
     gps_imu_sync_.registerCallback(boost::bind(&GpsConversion::syncCallback, this, _1, _2));
     gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
@@ -47,14 +48,14 @@ GpsConversion::GpsConversion() :
   }
 }
 
-
 bool GpsConversion::zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp)
 {
   set_height_zero_ = true;
   return true;
 }
 
-void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu)
+void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
+                                 const asctec_hl_comm::mav_imuConstPtr & imu)
 {
   if (gps->status.status != sensor_msgs::NavSatStatus::STATUS_FIX)
   {
@@ -68,7 +69,8 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, con
     return;
   }
 
-  if(set_height_zero_){
+  if (set_height_zero_)
+  {
     set_height_zero_ = false;
     height_offset_ = imu->height;
   }
@@ -92,7 +94,8 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
     return;
   }
 
-  if (gps->status.status == sensor_msgs::NavSatStatus::STATUS_FIX){
+  if (gps->status.status == sensor_msgs::NavSatStatus::STATUS_FIX)
+  {
     gps_position_ = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
     if (!use_pressure_height_)
     {
@@ -103,7 +106,8 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
       gps_position_pub_.publish(msg);
     }
   }
-  else{
+  else
+  {
     gps_position_.x = gps_position_.y = gps_position_.z = 0;
   }
 }
@@ -116,27 +120,29 @@ void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & 
     return;
   }
 
-  if (gps->status.status == sensor_msgs::NavSatStatus::STATUS_FIX){
+  if (gps->status.status == sensor_msgs::NavSatStatus::STATUS_FIX)
+  {
     geometry_msgs::Point pos = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
 
-      asctec_hl_comm::GpsCustomCartesianPtr msg(new asctec_hl_comm::GpsCustomCartesian);
-      msg->header = gps->header;
-      msg->position = pos;
-      msg->position_covariance = gps->position_covariance;
-      msg->velocity_x = gps->velocity_x;
-      msg->velocity_y = gps->velocity_y;
-      msg->velocity_covariance = gps->velocity_covariance;
+    asctec_hl_comm::GpsCustomCartesianPtr msg(new asctec_hl_comm::GpsCustomCartesian);
+    msg->header = gps->header;
+    msg->position = pos;
+    msg->position_covariance = gps->position_covariance;
+    msg->velocity_x = gps->velocity_x;
+    msg->velocity_y = gps->velocity_y;
+    msg->velocity_covariance = gps->velocity_covariance;
 
-      if (use_pressure_height_)
-      {
-        msg->position.z = gps->pressure_height - height_offset_;
-      }
-      gps_custom_pub_.publish(msg);
+    if (use_pressure_height_)
+    {
+      msg->position.z = gps->pressure_height - height_offset_;
+    }
+    gps_custom_pub_.publish(msg);
   }
 
 }
 
-void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu){
+void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
+{
   if (gps_position_.x == 0 && gps_position_.y == 0 && gps_position_.z == 0)
   {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
@@ -149,7 +155,8 @@ void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu){
     return;
   }
 
-  if(set_height_zero_){
+  if (set_height_zero_)
+  {
     set_height_zero_ = false;
     height_offset_ = imu->height;
   }
@@ -223,7 +230,8 @@ Eigen::Vector3d GpsConversion::ecefToEnu(const Eigen::Vector3d & ecef)
   return ecef_ref_orientation_ * (ecef - ecef_ref_point_);
 }
 
-geometry_msgs::Point GpsConversion::wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude)
+geometry_msgs::Point GpsConversion::wgs84ToEnu(const double & latitude, const double & longitude,
+                                               const double & altitude)
 {
   geometry_msgs::Point ret;
   Eigen::Vector3d tmp;
@@ -233,14 +241,15 @@ geometry_msgs::Point GpsConversion::wgs84ToEnu(const double & latitude, const do
   ret.z = tmp[2];
 
   // debug ...
-//  double dbg_x, dbg_y;
-//  latlon2xy_dbg(ref_latitude_, ref_longitude_, latitude, longitude, &dbg_x, &dbg_y);
-//  ROS_INFO("local metric coordinates: x: %f/%f y: %f/%f", ret.x, dbg_x, ret.y, dbg_y);
+  //  double dbg_x, dbg_y;
+  //  latlon2xy_dbg(ref_latitude_, ref_longitude_, latitude, longitude, &dbg_x, &dbg_y);
+  //  ROS_INFO("local metric coordinates: x: %f/%f y: %f/%f", ret.x, dbg_x, ret.y, dbg_y);
 
   return ret;
 }
 
-geometry_msgs::Point GpsConversion::wgs84ToNwu(const double & latitude, const double & longitude, const double & altitude)
+geometry_msgs::Point GpsConversion::wgs84ToNwu(const double & latitude, const double & longitude,
+                                               const double & altitude)
 {
   geometry_msgs::Point ret;
   Eigen::Vector3d tmp;
@@ -250,9 +259,9 @@ geometry_msgs::Point GpsConversion::wgs84ToNwu(const double & latitude, const do
   ret.z = tmp[2];
 
   // debug ...
-//  double dbg_x, dbg_y;
-//  latlon2xy_dbg(ref_latitude_, ref_longitude_, latitude, longitude, &dbg_x, &dbg_y);
-//  ROS_INFO("local metric coordinates: x: %f/%f y: %f/%f", ret.x, dbg_y, ret.y, -dbg_x);
+  //  double dbg_x, dbg_y;
+  //  latlon2xy_dbg(ref_latitude_, ref_longitude_, latitude, longitude, &dbg_x, &dbg_y);
+  //  ROS_INFO("local metric coordinates: x: %f/%f y: %f/%f", ret.x, dbg_y, ret.y, -dbg_x);
 
   return ret;
 }
