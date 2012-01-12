@@ -503,7 +503,7 @@ inline void sendStatus(void)
   statusData.battery_voltage = LL_1khz_attitude_data.battery_voltage1;
   statusData.cpu_load = cpuLoad;
   statusData.flight_mode = LL_1khz_attitude_data.flightMode;
-  statusData.flight_time = LL_1khz_attitude_data.flight_time;
+  statusData.flight_time = HL_Status.flight_time;
 
   if (motor_state == 0 || motor_state == 1)
     statusData.motors = motor_state;
