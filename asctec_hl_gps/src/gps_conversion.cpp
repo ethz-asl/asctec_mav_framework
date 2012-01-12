@@ -59,7 +59,7 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, con
   if (gps->status.status != sensor_msgs::NavSatStatus::STATUS_FIX)
   {
     //    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
-    ROS_WARN_STREAM("No GPS fix");
+    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
     return;
   }
 
