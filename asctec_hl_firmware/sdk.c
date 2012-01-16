@@ -554,7 +554,7 @@ inline void synchronizeTime()
     timeOffset = (900 * timeOffset + 100 * (timeSync.ts1 * 2 - timeSync.tc1 - timestamp) / 2) / 1000;
     statusData.timesync_offset = timeOffset;
 
-    if (timeOffset > 5e5 || timeOffset < -5e5)
+    if (timeOffset > 1e5 || timeOffset < -1e5)
     {
       timestamp = timeSync.ts1;
       timeOffset = 0;
