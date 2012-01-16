@@ -385,19 +385,9 @@ void HLInterface::diagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
 
 void HLInterface::processTimeSyncData(uint8_t * buf, uint32_t bufLength)
 {
-  static bool synced_once = false;
   HLI_TIMESYNC data = *(HLI_TIMESYNC*)buf;
 
-  if (!synced_once)
-  {
-    data.ts1 = 1e12; // cause a huge offset to force AP to sync
-    synced_once = true;
-    ROS_INFO_STREAM("forced imu to sync");
-  }
-  else
-  {
-    data.ts1 = (uint64_t)(ros::Time::now().toSec() * 1.0e6);
-  }
+  data.ts1 = (uint64_t)(ros::Time::now().toSec() * 1.0e6);
 
   comm_->sendPacket(HLI_PACKET_ID_TIMESYNC, data);
 
