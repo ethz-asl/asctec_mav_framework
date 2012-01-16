@@ -13,7 +13,7 @@ namespace asctec_hl_gps
 GpsConversion::GpsConversion() :
   nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1),
       gps_imu_sync_(GpsImuSyncPolicy(10), gps_sub_sync_, imu_sub_sync_), have_reference_(false),
-      set_height_zero_(false), Q_90_DEG(sqrt(2.0) / 2.0, 0, 0, sqrt(2.0) / 2.0)
+      height_offset_(0), set_height_zero_(false), Q_90_DEG(sqrt(2.0) / 2.0, 0, 0, sqrt(2.0) / 2.0)
 {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
@@ -28,6 +28,7 @@ GpsConversion::GpsConversion() :
   zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
 
   pnh.param("use_pressure_height", use_pressure_height_, false);
+  ROS_INFO_STREAM("using height measurement from "<< (use_pressure_height_?"pressure sensor":"GPS"));
 
   if (use_pressure_height_)
   {
