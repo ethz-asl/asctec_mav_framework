@@ -98,7 +98,7 @@ void EKFInterface::stateCallback(const sensor_fusion_core::ext_ekfConstPtr & msg
 
   if (msg->state.size() != HLI_EKF_STATE_SIZE)
   {
-    ROS_WARN("size of incoming state (%d) != size of state in the HL processor (%d), not sending!", msg->state.size(), HLI_EKF_STATE_SIZE);
+    ROS_WARN_STREAM("size of incoming state ("<< msg->state.size() <<") != size of state in the HL processor ("<< HLI_EKF_STATE_SIZE <<"), not sending!");
     return;
   }
 
