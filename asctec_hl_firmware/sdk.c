@@ -160,6 +160,9 @@ void sdkInit(void)
   UART0_rxFlush();
   UART0_txFlush();
 
+  // init ssdk
+  onboard_matlab_initialize();
+
   // init dekf, also packet subscription takes place here
   DEKF_init(&dekf, &extPosition);
 
