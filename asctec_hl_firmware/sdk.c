@@ -166,6 +166,29 @@ void sdkInit(void)
   // init dekf, also packet subscription takes place here
   DEKF_init(&dekf, &extPosition);
 
+  extPosition.bitfield = 0;
+  extPosition.count = 0;
+  extPosition.heading = 0;
+  extPosition.x = 0;
+  extPosition.y = 0;
+  extPosition.z = 0;
+  extPosition.vX = 0;
+  extPosition.vY = 0;
+  extPosition.vZ = 0;
+  extPosition.qualX = 0;
+  extPosition.qualY = 0;
+  extPosition.qualZ = 0;
+  extPosition.qualVx = 0;
+  extPosition.qualVy = 0;
+  extPosition.qualVz = 0;
+
+  extPositionCmd.heading = 0;
+  extPositionCmd.y = 0;
+  extPositionCmd.z = 0;
+  extPositionCmd.vY = 0;
+  extPositionCmd.vZ = 0;
+  extPositionCmd.vYaw = 0;
+
   startAutoBaud();
 }
 
