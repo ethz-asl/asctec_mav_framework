@@ -88,6 +88,14 @@ void DEKF_step(DekfContext * self, int64_t timestamp)
 {
   int i = 0;
 
+  int64_t idt = timestamp - self->last_time;
+  self->dt = (real32_T)idt * 1.0e-6;
+  self->last_time = timestamp;
+
+  // if idt > 100ms or negative, something went really wrong
+  if(idt > 100000 || idt < 0)
+    return;
+
   // bring data to SI units and ENU coordinates
   self->acc[0] = ((real32_T)LL_1khz_attitude_data.acc_x) * DEKF_ASCTEC_ACC_TO_SI;
   self->acc[1] = -((real32_T)LL_1khz_attitude_data.acc_y) * DEKF_ASCTEC_ACC_TO_SI;
@@ -96,10 +104,6 @@ void DEKF_step(DekfContext * self, int64_t timestamp)
   self->ang_vel[0] = ((real32_T)LL_1khz_attitude_data.angvel_roll) * DEKF_ASCTEC_OMEGA_TO_SI;
   self->ang_vel[1] = -((real32_T)LL_1khz_attitude_data.angvel_pitch) * DEKF_ASCTEC_OMEGA_TO_SI;
   self->ang_vel[2] = -((real32_T)LL_1khz_attitude_data.angvel_yaw) * DEKF_ASCTEC_OMEGA_TO_SI;
-
-  int64_t idt = timestamp - self->last_time;
-  self->dt = (real32_T)idt * 1.0e-6;
-  self->last_time = timestamp;
 
   autogen_ekf_propagation(self->last_state, self->acc, self->ang_vel, self->dt, self->current_state);
 
