@@ -38,6 +38,7 @@
 #include "uart.h"
 
 #define DEKF_CORRECTION_SMOOTING_LENGTH 100
+#define DEKF_WATCHDOG_TIMEOUT 10  // timeout in [s]
 
 typedef struct
 {
@@ -55,6 +56,8 @@ typedef struct
   real32_T ctrl_correction[6];
   real32_T ctrl_correction_step[6];
   int ctrl_correction_count;
+  int propagate_state;
+  unsigned int watchdog;
 } DekfContext;
 
 void DEKF_init(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input);

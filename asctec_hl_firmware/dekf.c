@@ -54,6 +54,8 @@ void DEKF_init(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input){
 
   self->last_time = 0;
   self->ctrl_correction_count = 0;
+  self->propagate_state = FALSE;
+  self->watchdog = 0;
 
   autogen_ekf_propagation_initialize();
 
@@ -86,6 +88,8 @@ void DEKF_sendState(DekfContext * self, int64_t timestamp)
 
 void DEKF_step(DekfContext * self, int64_t timestamp)
 {
+  self->watchdog ++;
+
   int i = 0;
 
   int64_t idt = timestamp - self->last_time;
@@ -96,6 +100,11 @@ void DEKF_step(DekfContext * self, int64_t timestamp)
   if(idt > 100000 || idt < 0)
     return;
 
+  if(self->watchdog > 1000 * DEKF_WATCHDOG_TIMEOUT){
+    self->watchdog = 1000 * DEKF_WATCHDOG_TIMEOUT;
+    self->propagate_state = FALSE;
+  }
+
   // bring data to SI units and ENU coordinates
   self->acc[0] = ((real32_T)LL_1khz_attitude_data.acc_x) * DEKF_ASCTEC_ACC_TO_SI;
   self->acc[1] = -((real32_T)LL_1khz_attitude_data.acc_y) * DEKF_ASCTEC_ACC_TO_SI;
@@ -105,11 +114,26 @@ void DEKF_step(DekfContext * self, int64_t timestamp)
   self->ang_vel[1] = -((real32_T)LL_1khz_attitude_data.angvel_pitch) * DEKF_ASCTEC_OMEGA_TO_SI;
   self->ang_vel[2] = -((real32_T)LL_1khz_attitude_data.angvel_yaw) * DEKF_ASCTEC_OMEGA_TO_SI;
 
-  autogen_ekf_propagation(self->last_state, self->acc, self->ang_vel, self->dt, self->current_state);
+  if (self->propagate_state == TRUE)
+  {
+    autogen_ekf_propagation(self->last_state, self->acc, self->ang_vel, self->dt, self->current_state);
+  }
+  else
+  {
+    // hold state, set velocity to zero
+    self->current_state[3] = 0;
+    self->current_state[4] = 0;
+    self->current_state[5] = 0;
+
+    //TODO: yaw ?!?
+  }
 
   if (self->packet_info->updated)
   {
     self->packet_info->updated = 0;
+    self->propagate_state = TRUE;
+    self->watchdog = 0;
+
     if (self->state_in.flag == HLI_EKF_STATE_STATE_CORRECTION)
     {
       // correct states
