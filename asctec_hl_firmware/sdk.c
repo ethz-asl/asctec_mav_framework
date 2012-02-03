@@ -183,11 +183,14 @@ void sdkInit(void)
   extPosition.qualVz = 0;
 
   extPositionCmd.heading = 0;
+  extPositionCmd.bitfield = 0;
+  extPositionCmd.x = 0;
   extPositionCmd.y = 0;
   extPositionCmd.z = 0;
-  extPositionCmd.vY = 0;
-  extPositionCmd.vZ = 0;
-  extPositionCmd.vYaw = 0;
+  extPositionCmd.vZ = 2000;
+  extPositionCmd.vY = 2000;
+  extPositionCmd.vZ = 2000;
+  extPositionCmd.vYaw = 45000;
 
   startAutoBaud();
 }
