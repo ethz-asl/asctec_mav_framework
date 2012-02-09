@@ -53,6 +53,38 @@ void printTopicInfo()
   ROS_INFO_STREAM(""<< topicsStr);
 }
 
+class Watchdog{
+private:
+  CommPtr & comm_;
+  const double PERIOD;
+  ros::Timer timer;
+  uint32_t last_rx_count_;
+  uint32_t timeout_count_;
+  void check(const ros::TimerEvent & e)
+  {
+    if(last_rx_count_ == comm_->getRxPacketsGood()){
+      timeout_count_++;
+      ROS_WARN("No new valid packets within the last %f s",PERIOD);
+    }
+
+    if(timeout_count_ > 5){
+      // a bit harsh, but: roslaunch will restart if "respawn" is set true, and no idea what would happen with all the static local variables :(( --> TODO: remove those!
+      ROS_FATAL("No valid packets within the last %f s, aborting !", 5*PERIOD);
+      ROS_BREAK();
+    }
+
+    last_rx_count_ = comm_->getRxPacketsGood();
+  }
+
+public:
+  Watchdog(CommPtr & comm):comm_(comm), PERIOD(1), last_rx_count_(0), timeout_count_(0)
+  {
+    ROS_INFO("creating watchdog monitoring successful rx packets");
+    ros::NodeHandle nh;
+    timer = nh.createTimer(ros::Duration(PERIOD), &Watchdog::check, this);
+  }
+};
+
 int main(int argc, char ** argv)
 {
   ros::init(argc, argv, "fcu");
@@ -89,6 +121,8 @@ int main(int argc, char ** argv)
   EKFInterface ekf_if(nh, comm);
 
   printTopicInfo();
+
+  Watchdog wd(comm);
 
   ros::spin();
 
