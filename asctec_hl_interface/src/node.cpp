@@ -67,9 +67,10 @@ private:
       ROS_WARN("No new valid packets within the last %f s",PERIOD);
     }
 
-    if(timeout_count_ > 5){
+    if(timeout_count_ > 4){
       // a bit harsh, but: roslaunch will restart if "respawn" is set true, and no idea what would happen with all the static local variables :(( --> TODO: remove those!
       ROS_FATAL("No valid packets within the last %f s, aborting !", 5*PERIOD);
+      ros::Duration(0.1).sleep(); //sleep a bit such that the above message will still get transmitted
       ros::shutdown();
     }
 
