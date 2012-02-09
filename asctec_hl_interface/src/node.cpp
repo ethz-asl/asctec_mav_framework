@@ -70,7 +70,7 @@ private:
     if(timeout_count_ > 5){
       // a bit harsh, but: roslaunch will restart if "respawn" is set true, and no idea what would happen with all the static local variables :(( --> TODO: remove those!
       ROS_FATAL("No valid packets within the last %f s, aborting !", 5*PERIOD);
-      ROS_BREAK();
+      ros::shutdown();
     }
 
     last_rx_count_ = comm_->getRxPacketsGood();
