@@ -221,7 +221,7 @@ void Comm::rxReadCallback(const boost::system::error_code& error, size_t bytes_t
     }
     else{
       ROS_ERROR("Too many read errors");
-      ROS_BREAK();
+      ros::shutdown();
     }
     err_cnt ++;
     return;
