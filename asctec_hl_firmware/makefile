@@ -72,6 +72,7 @@ SRCARM += gpsmath.c
 SRCARM += sdk.c
 SRCARM += dekf.c
 SRCARM += uart.c
+SRCARM += ublox.c
 
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_initialize.c
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_terminate.c

@@ -7,6 +7,7 @@
 #include "hardware.h"
 #include "gpsmath.h"
 #include "ssp.h"
+#include "ublox.h"
 
 unsigned char packets;
 unsigned char DataOutputsPerSecond;
@@ -285,199 +286,33 @@ void uart1ISR(void) __irq
   unsigned iir = U1IIR;
   // Handle UART interrupt
   switch ((iir >> 1) & 0x7)
-    {
-      case 1:
-		  // THRE interrupt
+  {
+    case 1:
+      // THRE interrupt
 
-		 if (ringbuffer1(RBREAD, &t, 1))
-		 {
-		   transmission1_running=1;
-		   UART1WriteChar(t);
-		 }
-		 else
-		 {
-		   transmission1_running=0;
-		   if (baudrate1_change)		//baudrate change after first GPS config command
-		   {
-			   UART1Initialize(57600);
-			   baudrate1_change=0;
-		   }
-		 }
-        break;
-      case 2:
-		c=U1RBR;
+      if (ringbuffer1(RBREAD, &t, 1))
+      {
+        transmission1_running = 1;
+        UART1WriteChar(t);
+      }
+      else
+      {
+        transmission1_running = 0;
+      }
+      break;
+    case 2:
+      c = U1RBR;
+      uBloxReceiveHandler(c);
 
-		//UARTWriteChar(c);
-
-#ifndef INDOOR_GPS	//run GPS statemachine
-
-        //parse UBX (U0RBR);
-
-	//SSP_trans_cnt++;
-		switch (state)
-		{
-			case 0:
-				if(c==0xB5)
-				{
-					state=1;
-				}
-			break;
-			case 1:
-				if(c==0x62)
-				{
-					state=2;
-				}
-				else state=0;
-			break;
-			case 2:
-				if(c==0x01)	//NAV message
-				{
-				 	state=3;
-				}
-				else if (c==0x05)	//ACK message
-					{
-						state=10;
-					}
-				else state=0;
-			break;
-			case 3:
-				current_packet=c;
-				cnt=0;
-				state=4;
-			break;
-			case 4:
-				if(!cnt) length=c;
-				if(current_packet==0x06) parse_NAVSOL(0,1);
-				if(++cnt==2)
-				{
-					cnt=0;
-					state=5;
-				}
-			break;
-			case 5:	//Four bytes ITOW
-				//NAVSOL is the only packets where the first 4 bytes need to be parsed. Any other packet discardes the first 4 bytes!!!
-				if(current_packet==0x06) parse_NAVSOL(c,0);
-				if(++cnt==4)
-				{
-					cnt=0;
-					state=6;
-					if(current_packet==0x02) parse_POSLLH(0,1);
-					//else if(current_packet==0x08) parse_POSUTM(0,1);
-					else if(current_packet==0x03) parse_STATUS(0,1);
-					else if(current_packet==0x12) parse_VELNED(0,1);
-				}
-			break;
-			case 6:
-				if(current_packet==0x02)
-				{
-					parse_POSLLH(c,0);
-				}
-		/*		else if(current_packet==0x08	//POSUTM currently not used
-				{
-					parse_POSUTM(c,0);
-				}
-			*/	else if(current_packet==0x03)
-				{
-					parse_STATUS(c,0);
-				}
-				else if(current_packet==0x12)
-				{
-					parse_VELNED(c,0);
-				}
-				else if(current_packet==0x06)
-				{
-					parse_NAVSOL(c,0);
-				}
-				else state=0;
-
-				if(++cnt>=length-4)
-				{
-					state=0;
-				}
-			break;
-			case 10:
-				if (c==0x01)
-				{
-					cnt=0;
-					state=11;
-				} else
-					state=0;
-			break;
-			case 11:
-				if (!cnt) length=c;
-				if (cnt++==1)
-				{
-					cnt=0;
-					state=12;
-				}
-			break;
-			case 12:
-				if (c==0x06)		//ACK of a CFG-message
-				{
-					state=13;
-				} else
-					state=0;
-			break;
-			case 13:
-				state=14;
-			break;
-			case 14:
-				if (!GPS_ACK_received)
-				{
-					GPS_ACK_received=1;
-					state=0;
-				}
-			break;
-			default:
-				state=0;
-			break;
-		}
-
-#else	//run optical tracking statemachine
-		switch (state)
-		{
-			case 0:
-				if(c=='>') state=1;
-			break;
-			case 1:
-				if(c=='*') state=2;
-				else state=0;
-			break;
-			case 2:
-				if(c=='>')	//Startstring received
-				{
-					UART1_rxcount=sizeof(OF_Data);
-					UART1_rxptr=(unsigned char *)&OF_Data_e;
-				 	state=3;
-				}
-				else state=0;
-			break;
-			case 3:
-				UART1_rxcount--;
-				*UART1_rxptr=c;
-				UART1_rxptr++;
-				if (UART1_rxcount==0)
-	        	{
-	             	state=0;
-	             	OF_data_updated=0;
-	        	}
-			break;
-			default:
-			state=0;
-			break;
-		}
-#endif
-
-        break;
-      case 3:
-        // RLS interrupt
-        break;
-      case 6:
-        // CTI interrupt
-        break;
-   }
-  IDISABLE;
-  VICVectAddr = 0;		/* Acknowledge Interrupt */
+      break;
+    case 3:
+      // RLS interrupt
+      break;
+    case 6:
+      // CTI interrupt
+      break;
+  }IDISABLE;
+  VICVectAddr = 0; /* Acknowledge Interrupt */
 }
 
 void UART1Initialize(unsigned int baud)
