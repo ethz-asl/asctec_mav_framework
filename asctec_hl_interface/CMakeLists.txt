@@ -35,3 +35,6 @@ rosbuild_link_boost(hl_node thread system signals)
 rosbuild_add_executable(ctrl_test src/ctrl_test.cpp)
 rosbuild_add_executable(waypoint_server src/waypoint_server.cpp)
 rosbuild_add_executable(waypoint_client src/waypoint_client.cpp)
+rosbuild_add_executable(serial_dump src/serial_dump.cpp)
+rosbuild_link_boost(serial_dump thread system signals)
+
