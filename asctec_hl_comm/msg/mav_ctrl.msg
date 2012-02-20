@@ -26,3 +26,5 @@ float32     v_max_z
 int8 acceleration = 1
 int8 velocity = 2
 int8 position = 3
+int8 velocity_body = 4
+int8 position_body = 5
