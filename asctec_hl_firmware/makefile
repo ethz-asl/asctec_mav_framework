@@ -72,7 +72,7 @@ SRCARM += gpsmath.c
 SRCARM += sdk.c
 SRCARM += dekf.c
 SRCARM += uart.c
-SRCARM += ublox.c
+
 
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_initialize.c
 SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_terminate.c
@@ -96,6 +96,7 @@ SRCARMINT += Common_WinARM/src/interrupt_utils.c
 SRCARMINT += adc.c
 SRCARMINT += ssp.c
 SRCARMINT += LL_HL_comm.c
+SRCARMINT += ublox.c
 
 
 # List C++ source files here.
