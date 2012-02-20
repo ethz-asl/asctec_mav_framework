@@ -25,7 +25,7 @@ private:
 
   bool timeOk(const ros::Time & time)
   {
-    bool ret = std::abs((current_pose_.header.stamp - time).toSec()) < 0.05;
+    bool ret = std::abs((current_pose_.header.stamp - time).toSec()) < 0.5;
     if (!ret)
       ROS_WARN_STREAM_THROTTLE(1, "Timestamps of control and current pose are not in sync("<<time<<", "<<current_pose_.header.stamp<<"), not publishing");
     return ret;
@@ -40,7 +40,7 @@ private:
     float s_yaw = sin(yaw);
     float c_yaw = cos(yaw);
 
-    asctec_hl_comm::mav_ctrlPtr msg_out;
+    asctec_hl_comm::mav_ctrlPtr msg_out(new asctec_hl_comm::mav_ctrl);
     *msg_out = *msg;
 
     msg_out->type = asctec_hl_comm::mav_ctrl::velocity;
