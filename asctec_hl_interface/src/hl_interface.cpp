@@ -650,6 +650,14 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   HLI_CMD_HL ctrlHL;
   static unsigned int seq = 1; // <-- set to one, otherwise first packet doesn't get through
 
+  if (std::abs(msg.yaw) > M_PI)
+  {
+    ROS_WARN("yaw has to be in [-pi ... pi], got %f instead", msg.yaw);
+    if (ctrl_result != NULL)
+      ctrl_result->type = -1;
+    return;
+  }
+
   ctrlHL.seq = seq;
   ctrlHL.vX = 0;
   ctrlHL.vX = 0;
