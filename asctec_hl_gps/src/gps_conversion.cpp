@@ -131,8 +131,8 @@ void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & 
     msg->position_covariance = gps->position_covariance;
 
     // rotate velocity to ENU !
-    msg->velocity_x = gps->velocity_y;
-    msg->velocity_y = - gps->velocity_x;
+    msg->velocity_x = gps->velocity_x;
+    msg->velocity_y = gps->velocity_y;
 
     msg->velocity_covariance = gps->velocity_covariance;
 
