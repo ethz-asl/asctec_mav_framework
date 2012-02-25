@@ -80,6 +80,8 @@ short motor_state = -1;
 short motor_state_count = 0;
 unsigned int sdkLoops = 0;
 
+unsigned int ssdk_reset_state = 0;
+
 // dekf variables
 DekfContext dekf;
 
@@ -318,10 +320,29 @@ void SDK_mainloop(void)
       break;
     case HLI_MODE_STATE_ESTIMATION_HL_EKF:
       DEKF_step(&dekf, timestamp);
+      if(DEKF_getInitializeEvent(&dekf) == 1)
+        ssdk_reset_state = 1;
+
       extPositionValid = 1;
       break;
     default:
       extPositionValid = 0;
+  }
+
+  // dekf initialize state machine
+
+  if (ssdk_reset_state >= 1 && ssdk_reset_state < 10)
+  {
+    RO_RC_Data.channel[0] = 2048;
+    RO_RC_Data.channel[1] = 2048;
+    RO_RC_Data.channel[2] = 2048;
+    RO_RC_Data.channel[3] = 2048;
+    RO_RC_Data.channel[5] = 0;
+    ssdk_reset_state++;
+  }
+  else
+  {
+    ssdk_reset_state = 0;
   }
 
   // execute ssdk - only executed if ssdk parameters are available

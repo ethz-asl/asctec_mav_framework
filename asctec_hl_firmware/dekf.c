@@ -114,6 +114,14 @@ void DEKF_step(DekfContext * self, int64_t timestamp)
   self->ang_vel[1] = -((real32_T)LL_1khz_attitude_data.angvel_pitch) * DEKF_ASCTEC_OMEGA_TO_SI;
   self->ang_vel[2] = -((real32_T)LL_1khz_attitude_data.angvel_yaw) * DEKF_ASCTEC_OMEGA_TO_SI;
 
+//  // disable system inputs for testing
+//  self->acc[0] = 0;
+//  self->acc[1] = 0;
+//  self->acc[2] = 9.81;
+//  self->ang_vel[0] = 0;
+//  self->ang_vel[1] = 0;
+//  self->ang_vel[2] = 0;
+
   if (self->propagate_state == TRUE)
   {
     autogen_ekf_propagation(self->last_state, self->acc, self->ang_vel, self->dt, self->current_state);
@@ -127,6 +135,9 @@ void DEKF_step(DekfContext * self, int64_t timestamp)
 
     //TODO: yaw ?!?
   }
+
+
+  self->initialize_event = 0;
 
   if (self->packet_info->updated)
   {
@@ -143,6 +154,7 @@ void DEKF_step(DekfContext * self, int64_t timestamp)
     {
       initState(self);
       self->ctrl_correction_count = 0;
+      self->initialize_event = 1;
       writeControllerOutput(self);
     }
   }
@@ -254,6 +266,11 @@ void writeControllerOutput(DekfContext * self)
   self->pos_ctrl_input->qualVx = 100;
   self->pos_ctrl_input->qualVy = 100;
   self->pos_ctrl_input->qualVz = 100;
+}
+
+char DEKF_getInitializeEvent(DekfContext * self)
+{
+  return self->initialize_event;
 }
 
 real32_T yawFromQuaternion(const real32_T q[4])

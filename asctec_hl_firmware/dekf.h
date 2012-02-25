@@ -58,6 +58,7 @@ typedef struct
   int ctrl_correction_count;
   int propagate_state;
   unsigned int watchdog;
+  char initialize_event;
 } DekfContext;
 
 void DEKF_init(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input);
@@ -65,6 +66,8 @@ void DEKF_init(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input);
 void DEKF_sendState(DekfContext * self, int64_t  timestamp);
 
 void DEKF_step(DekfContext * self, int64_t timestamp);
+
+char DEKF_getInitializeEvent(DekfContext * self);
 
 inline void initState(DekfContext * self);
 
