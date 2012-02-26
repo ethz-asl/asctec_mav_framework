@@ -330,7 +330,7 @@ void SDK_mainloop(void)
   }
 
   // dekf initialize state machine
-
+  // sets the acc/height/gps switch to 0 for 10 loops so that refmodel gets reset to the new state
   if (ssdk_reset_state >= 1 && ssdk_reset_state < 10)
   {
     RO_RC_Data.channel[0] = 2048;
@@ -363,6 +363,11 @@ void SDK_mainloop(void)
     {
       WO_CTRL_Input.ctrl = hli_config.position_control_axis_enable;
       WO_SDK.ctrl_enabled = 1;
+      // limit yaw rate:
+      if(WO_CTRL_Input.yaw > 1000)
+        WO_CTRL_Input.yaw = 1000;
+      else if(WO_CTRL_Input.yaw < -1000)
+        WO_CTRL_Input.yaw = -1000;
     }
 
     else if (cmdLLValid > 0 && (hli_config.mode_position_control == HLI_MODE_POSCTRL_LL || hli_config.mode_position_control == HLI_MODE_POSCTRL_OFF))
