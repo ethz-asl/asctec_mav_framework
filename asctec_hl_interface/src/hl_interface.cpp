@@ -352,17 +352,18 @@ void HLInterface::diagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
   std::string summary_message = "OK";
 
   // TODO: are these thresholds ok?
-  if (status_.battery_voltage < config_.battery_warning)
-  {
-    summary_level = diagnostic_msgs::DiagnosticStatus::WARN;
-    summary_message = "battery voltage low";
-    ROS_WARN_STREAM_THROTTLE(1, "" << summary_message << ": " << status_.battery_voltage << " V");
-  }
-  else if (status_.battery_voltage < (config_.battery_warning - 0.5))
+
+  if (status_.battery_voltage < (config_.battery_warning - 0.5))
   {
     summary_level = diagnostic_msgs::DiagnosticStatus::ERROR;
     summary_message = "battery voltage critical - land now !!!";
     ROS_ERROR_STREAM_THROTTLE(1, "" << summary_message << ": " << status_.battery_voltage << " V");
+  }
+  else if (status_.battery_voltage < config_.battery_warning)
+  {
+    summary_level = diagnostic_msgs::DiagnosticStatus::WARN;
+    summary_message = "battery voltage low";
+    ROS_WARN_STREAM_THROTTLE(1, "" << summary_message << ": " << status_.battery_voltage << " V");
   }
 
   stat.summary(summary_level, summary_message);
