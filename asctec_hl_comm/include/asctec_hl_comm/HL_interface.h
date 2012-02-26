@@ -74,7 +74,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HLI_GPS_BIT                             0x20
 
 // communication defaults
-#define HLI_COMMUNICATION_TIMEOUT               10
+#define HLI_COMMUNICATION_TIMEOUT               3
 #define HLI_DEFAULT_BAUDRATE                    57600
 #define HLI_DEFAULT_PERIOD_IMU                  20
 #define HLI_DEFAULT_PERIOD_GPS                  200

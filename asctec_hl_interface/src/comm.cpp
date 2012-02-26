@@ -38,7 +38,7 @@ Comm::Comm() :
   rx_packet_cnt_ = 0;
   rx_packet_good_cnt_ = 0;
   registerCallback(HLI_PACKET_ID_ACK, &Comm::processPacketAck, this);
-  tx_buffer_[0] = '>';
+  tx_buffer_[0] = 'a';
   tx_buffer_[1] = '*';
   tx_buffer_[2] = '>';
 }

@@ -114,6 +114,7 @@ int main(int argc, char ** argv)
   if (!connected)
   {
     ROS_ERROR("unable to connect");
+    ros::Duration(2).sleep();
     return -1;
   }
 
