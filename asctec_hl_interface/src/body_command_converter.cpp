@@ -72,7 +72,13 @@ private:
     msg_out->y = s_yaw * msg->x + c_yaw * msg->y + current_pose_.pose.position.y;
 
     yaw += msg->yaw;
-    msg_out->yaw = yaw > M_PI ? (yaw - 2 * M_PI) : yaw;
+
+    if (yaw > M_PI)
+      msg_out->yaw = yaw - 2 * M_PI;
+    else if (yaw < -M_PI)
+      msg_out->yaw = yaw + 2 * M_PI;
+    else
+      msg_out->yaw = yaw;
 
     cmd_pub_.publish(msg_out);
   }
