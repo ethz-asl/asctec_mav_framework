@@ -68,8 +68,8 @@ private:
     *msg_out = *msg;
 
     msg_out->type = asctec_hl_comm::mav_ctrl::position;
-    msg_out->x = c_yaw * msg->x - s_yaw * msg->y;
-    msg_out->y = s_yaw * msg->x + c_yaw * msg->y;
+    msg_out->x = c_yaw * msg->x - s_yaw * msg->y + current_pose_.pose.position.x;
+    msg_out->y = s_yaw * msg->x + c_yaw * msg->y + current_pose_.pose.position.y;
 
     yaw += msg->yaw;
     msg_out->yaw = yaw > M_PI ? (yaw - 2 * M_PI) : yaw;
