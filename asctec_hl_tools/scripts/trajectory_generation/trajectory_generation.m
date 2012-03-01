@@ -6,8 +6,8 @@ dt = 0.01;
 %% heli parameters
 om0 = 2*[1 1 1]';
 zeta = [1 1 1]';
-v_max = [1 1 1]';
-a_max = [1 1 1]';
+v_max = [1 1 1]'*v_des;
+a_max = [1 1 1]'*2;
 
 %% generate ellipse
 
@@ -48,7 +48,7 @@ wp(1,:) = wp(1,:) + a;
 % t_wp = t(1:10:end);
 
 if(d_yaw == 0)
-    yaw = ones(1,size(wp, 2))*pi/2*0;
+    yaw = ones(1,size(wp, 2))*0;
 else
     yaw = 0:d_yaw/(size(wp,2)-1):d_yaw;
 end
