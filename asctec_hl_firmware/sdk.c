@@ -217,7 +217,8 @@ void SDK_mainloop(void)
 {
   sdkCycleStartTime = T1TC;
 
-  WO_SDK.ctrl_mode = 0x00; //0x00: absolute angle and throttle control
+  WO_SDK.ctrl_mode = 0x02; // attitude and throttle control
+  WO_SDK.disable_motor_onoff_by_stick = 0;
 
   sdkLoops++;
 
