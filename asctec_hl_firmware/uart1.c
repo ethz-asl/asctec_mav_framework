@@ -35,7 +35,6 @@ DAMAGE.
 #include "hardware.h"
 #include "gpsmath.h"
 #include "ssp.h"
-#include "ublox.h"
 
 unsigned char packets;
 unsigned char DataOutputsPerSecond;

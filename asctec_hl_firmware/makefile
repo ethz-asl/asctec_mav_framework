@@ -97,7 +97,7 @@ SRCARMINT += Common_WinARM/src/interrupt_utils.c
 SRCARMINT += adc.c
 SRCARMINT += ssp.c
 SRCARMINT += LL_HL_comm.c
-SRCARMINT += ublox.c
+#SRCARMINT += ublox.c
 
 
 # List C++ source files here.
