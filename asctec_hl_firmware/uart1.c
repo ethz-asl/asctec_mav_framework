@@ -1,3 +1,31 @@
+/*
+
+Copyright (c) 2011, Ascending Technologies GmbH
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+
+ */
+
 #include "LPC214x.h"
 #include "interrupt_utils.h"
 #include "system.h"
@@ -37,7 +65,6 @@ static volatile unsigned char rb_busy=0;
 
 static volatile unsigned char GPS_ACK_received=0;
 
-/*
 //configuration commands for GPS
 const unsigned char GPS_CFG_PRT[26] =
 		{	0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xd0, 0x08, 0x08, 0x00, 0x00,
@@ -69,39 +96,6 @@ const unsigned char GPS_CFG_SBAS[14] =
 const unsigned char GPS_CFG_CFG[19] =
 		{	0x06, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x07, 0x21, 0xaf };
-*/
-
-// new commands for gps, sbas disabled
-const unsigned char GPS_CFG_PRT[26] =
-                {       0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xd0, 0x08, 0x08, 0x00, 0x00,
-                        0xe1, 0x00, 0x00, 0x07, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe4, 0x2d };
-const unsigned char GPS_CFG_ANT[10] =
-                {       0x06, 0x13, 0x04, 0x00, 0x0b, 0x00, 0x0f, 0x38, 0x6f, 0x4f };
-const unsigned char GPS_CFG_MSG[11][12] =
-                {       {0x06, 0x01, 0x06, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x80},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x02, 0x00, 0x01, 0x00, 0x00, 0x11, 0x88},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x03, 0x00, 0x01, 0x00, 0x00, 0x12, 0x8d},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x12, 0x8f},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x06, 0x00, 0x01, 0x00, 0x00, 0x15, 0x9c},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x11, 0x00, 0x00, 0x00, 0x00, 0x1f, 0xd0},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x12, 0x00, 0x01, 0x00, 0x00, 0x21, 0xd8},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x20, 0x00, 0x00, 0x00, 0x00, 0x2e, 0x1b},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x21, 0x00, 0x00, 0x00, 0x00, 0x2f, 0x20},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x22, 0x00, 0x00, 0x00, 0x00, 0x30, 0x25},
-                        {0x06, 0x01, 0x06, 0x00, 0x01, 0x30, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x6b} };
-const unsigned char GPS_CFG_SBAS[14] =
-            {     0x06, 0x16, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-                  0x25, 0x90 }; //SBAS OFF
-const unsigned char GPS_CFG_NAV2[46] =
-            {     0x06, 0x1a, 0x28, 0x00, 0x05, 0x00, 0x00, 0x00, 0x04, 0x03, 0x0A, 0x02,
-                  0x50, 0xc3, 0x00, 0x00, 0x0f, 0x0a, 0x0a, 0x3c, 0x00, 0x01, 0x00, 0x00,
-                  0xfa, 0x00, 0xfa, 0x00, 0x64, 0x00, 0x2c, 0x01, 0x00, 0x00, 0x00, 0x00,
-                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x58, 0x64 }; //max SV=10
-const unsigned char GPS_CFG_RATE[12] =
-            {     0x06, 0x08, 0x06, 0x00, 0xc8, 0x00, 0x01, 0x00, 0x00, 0x00, 0xdd, 0x68 };      //5Hz
-const unsigned char GPS_CFG_CFG[19] =
-                {       0x06, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00, 0x07, 0x21, 0xaf };
 
 /*
 
@@ -298,11 +292,188 @@ void uart1ISR(void) __irq
       else
       {
         transmission1_running = 0;
+        if (baudrate1_change) //baudrate change after first GPS config command
+        {
+          UART1Initialize(57600);
+          baudrate1_change = 0;
+        }
       }
       break;
     case 2:
       c = U1RBR;
-      uBloxReceiveHandler(c);
+
+      //UARTWriteChar(c);
+
+#ifndef INDOOR_GPS	//run GPS statemachine
+      //parse UBX (U0RBR);
+
+      //SSP_trans_cnt++;
+      switch (state)
+      {
+        case 0:
+          if (c == 0xB5)
+          {
+            state = 1;
+          }
+          break;
+        case 1:
+          if (c == 0x62)
+          {
+            state = 2;
+          }
+          else
+            state = 0;
+          break;
+        case 2:
+          if (c == 0x01) //NAV message
+          {
+            state = 3;
+          }
+          else if (c == 0x05) //ACK message
+          {
+            state = 10;
+          }
+          else
+            state = 0;
+          break;
+        case 3:
+          current_packet = c;
+          cnt = 0;
+          state = 4;
+          break;
+        case 4:
+          if (!cnt)
+            length = c;
+          if (current_packet == 0x06)
+            parse_NAVSOL(0, 1);
+          if (++cnt == 2)
+          {
+            cnt = 0;
+            state = 5;
+          }
+          break;
+        case 5: //Four bytes ITOW
+          //NAVSOL is the only packets where the first 4 bytes need to be parsed. Any other packet discardes the first 4 bytes!!!
+          if (current_packet == 0x06)
+            parse_NAVSOL(c, 0);
+          if (++cnt == 4)
+          {
+            cnt = 0;
+            state = 6;
+            if (current_packet == 0x02)
+              parse_POSLLH(0, 1);
+            //else if(current_packet==0x08) parse_POSUTM(0,1);
+            else if (current_packet == 0x03)
+              parse_STATUS(0, 1);
+            else if (current_packet == 0x12)
+              parse_VELNED(0, 1);
+          }
+          break;
+        case 6:
+          if (current_packet == 0x02)
+          {
+            parse_POSLLH(c, 0);
+          }
+          /*		else if(current_packet==0x08	//POSUTM currently not used
+           {
+           parse_POSUTM(c,0);
+           }
+           */else if (current_packet == 0x03)
+          {
+            parse_STATUS(c, 0);
+          }
+          else if (current_packet == 0x12)
+          {
+            parse_VELNED(c, 0);
+          }
+          else if (current_packet == 0x06)
+          {
+            parse_NAVSOL(c, 0);
+          }
+          else
+            state = 0;
+
+          if (++cnt >= length - 4)
+          {
+            state = 0;
+          }
+          break;
+        case 10:
+          if (c == 0x01)
+          {
+            cnt = 0;
+            state = 11;
+          }
+          else
+            state = 0;
+          break;
+        case 11:
+          if (!cnt)
+            length = c;
+          if (cnt++ == 1)
+          {
+            cnt = 0;
+            state = 12;
+          }
+          break;
+        case 12:
+          if (c == 0x06) //ACK of a CFG-message
+          {
+            state = 13;
+          }
+          else
+            state = 0;
+          break;
+        case 13:
+          state = 14;
+          break;
+        case 14:
+          if (!GPS_ACK_received)
+          {
+            GPS_ACK_received = 1;
+            state = 0;
+          }
+          break;
+        default:
+          state = 0;
+          break;
+      }
+
+#else	//run optical tracking statemachine
+      switch (state)
+      {
+        case 0:
+        if(c=='>') state=1;
+        break;
+        case 1:
+        if(c=='*') state=2;
+        else state=0;
+        break;
+        case 2:
+        if(c=='>') //Startstring received
+
+        {
+          UART1_rxcount=sizeof(OF_Data);
+          UART1_rxptr=(unsigned char *)&OF_Data_e;
+          state=3;
+        }
+        else state=0;
+        break;
+        case 3:
+        UART1_rxcount--;
+        *UART1_rxptr=c;
+        UART1_rxptr++;
+        if (UART1_rxcount==0)
+        {
+          state=0;
+          OF_data_updated=0;
+        }
+        break;
+        default:
+        state=0;
+        break;
+      }
+#endif
 
       break;
     case 3:
