@@ -90,8 +90,8 @@ int main(int argc, char ** argv)
     msg.y = atof(argv[4]);
     msg.z = atof(argv[5]);
     msg.yaw = atof(argv[6]);
-    msg.v_max_xy = 1.0;
-    msg.v_max_z = 1.0;
+    msg.v_max_xy = -1; // use max velocity from config
+    msg.v_max_z = -1;
 
     std::string type(argv[2]);
     if (type == "acc")
