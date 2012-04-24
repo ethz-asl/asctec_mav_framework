@@ -6,6 +6,7 @@
  *
  *   History
  *   2005.10.01  ver 1.00    Prelimnary version, first Release
+ *   Modifications from Ascending Technologies GmbH
  *
 ******************************************************************************/
 #ifndef __I2C_H 
