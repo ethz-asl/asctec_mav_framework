@@ -1,3 +1,31 @@
+/*
+
+Copyright (c) 2011, Ascending Technologies GmbH
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+
+ */
+
 #ifndef MAIN_H_
 #define MAIN_H_
 
@@ -10,9 +38,7 @@ volatile unsigned int GPS_timeout;
 extern unsigned int GPS_cnt_trigger[4];
 unsigned char GPS_init_status;
 
-
-//#define BATTERY_WARNING_VOLTAGE 10700   //10500 mV, for newer batteries with flatter discharging characteristic, such as TP 5000
-#define BATTERY_WARNING_VOLTAGE 10000   //9800 mV
+#define BATTERY_WARNING_VOLTAGE 10000	//9800 mV
 #define BAT_DIV 10//(BATTERY_WARNING_VOLTAGE-9000)/100
 
 //#define GPS_BEEP	//Warning, if GPS has no lock
