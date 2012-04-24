@@ -6,7 +6,7 @@
 /*  these are "reentrant functions" as needed by                       */
 /*  the WinARM-newlib-config, see newlib-manual                        */
 /*  collected and modified by Martin Thomas                            */
-/*  TODO: some more work has to be done on this                        */
+/*  some more work has to be done on this		                       */
 /***********************************************************************/
 
 #include <stdlib.h>
