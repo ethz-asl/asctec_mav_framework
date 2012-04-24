@@ -31,6 +31,7 @@
 # - 22. Feb. 2006  - added AT91LIBNOWARN setting (mth)
 # - 19. Apr. 2006  - option FLASH_TOOL (default lpc21isp); variable IMGEXT (mth)
 #
+# modified 2011 by Ascending Technologies GmbH
 
 //FLASH_TOOL = UVISION
 FLASH_TOOL = OPENOCD
@@ -382,7 +383,7 @@ sym: $(TARGET).sym
 begin:
 	@echo
 	@echo $(MSG_BEGIN)
-	
+
 finished:
 	@echo $(MSG_ERRORS_NONE)
 
@@ -432,6 +433,7 @@ program: $(TARGET).$(IMGEXT)
 	$(LPC21ISP) $(LPC21ISP_OPTIONS) $(LPC21ISP_DEBUG) $(LPC21ISP_FLASHFILE) $(LPC21ISP_PORT) $(LPC21ISP_BAUD) $(LPC21ISP_XTAL)
 endif
 endif
+
 
 # Create final output file (.hex) from ELF output file.
 %.hex: %.elf
@@ -567,5 +569,4 @@ clean_list :
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
 build elf hex bin lss sym clean clean_list program
-
 
