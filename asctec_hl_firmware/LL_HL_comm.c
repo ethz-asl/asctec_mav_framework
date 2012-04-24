@@ -1,3 +1,31 @@
+/*
+
+Copyright (c) 2011, Ascending Technologies GmbH
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+
+ */
+
 #include "main.h"
 #include "LL_HL_comm.h"
 #include "system.h"
@@ -12,6 +40,17 @@ extern unsigned int SPIWR_num_bytes;
 
 struct LL_ATTITUDE_DATA LL_1khz_attitude_data;
 struct LL_CONTROL_INPUT LL_1khz_control_input;
+
+
+unsigned char wpCtrlWpCmd=0;
+unsigned char wpCtrlWpCmdUpdated=0;
+
+unsigned char wpCtrlAckTrigger=0;
+
+unsigned short wpCtrlNavStatus=0;
+unsigned short wpCtrlDistToWp=0;
+
+struct WAYPOINT wpToLL;
 
 void SSP_data_distribution_HL(void)
 {
@@ -48,12 +87,32 @@ void SSP_data_distribution_HL(void)
 		IMU_CalcData.Hx=LL_1khz_attitude_data.mag_x;
 		IMU_CalcData.Hy=LL_1khz_attitude_data.mag_y;
 		IMU_CalcData.Hz=LL_1khz_attitude_data.mag_z;
+		unsigned char slowDataUpChannelSelect=(LL_1khz_attitude_data.status2>>1)&0x7F;
+		switch (slowDataUpChannelSelect)
+		{
+		case SUDC_FLIGHTTIME:
+
+			HL_Status.flight_time=LL_1khz_attitude_data.slowDataUpChannelDataShort;
+			break;
+		case SUDC_NAVSTATUS:
+			wpCtrlNavStatus=LL_1khz_attitude_data.slowDataUpChannelDataShort;
+		break;
+		case SUDC_DISTTOWP:
+			wpCtrlDistToWp=LL_1khz_attitude_data.slowDataUpChannelDataShort;
+		break;
+		case SUDC_WPACKTRIGGER:
+			wpCtrlAckTrigger=LL_1khz_attitude_data.slowDataUpChannelDataShort;
+		break;
+
+		}
+
 	}
 }
 
 int HL2LL_write_cycle(void)	//write data to low-level processor
 {
 	static char pageselect=0;
+	unsigned char i;
 
 	if(!data_sent_to_LL) return(0);
 
@@ -63,38 +122,100 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 
 	if(gpsDataOkTrigger) LL_1khz_control_input.system_flags|=SF_GPS_NEW;
 
-#ifndef FALCON
-	if(WO_SDK.ctrl_enabled)  LL_1khz_control_input.system_flags|=SF_HL_CONTROL_ENABLED;
-	else LL_1khz_control_input.system_flags&=~SF_HL_CONTROL_ENABLED;
+	if(WO_SDK.ctrl_enabled)  LL_1khz_control_input.system_flags|=SF_HL_CONTROL_ENABLED|SF_NEW_SDK;
+	else LL_1khz_control_input.system_flags&=~(SF_HL_CONTROL_ENABLED|SF_NEW_SDK);
 
-	if(WO_SDK.ctrl_mode==0x01) LL_1khz_control_input.system_flags|=SF_DIRECT_MOTOR_CONTROL;
-	else LL_1khz_control_input.system_flags&=~SF_DIRECT_MOTOR_CONTROL;
-#else //Disable Control Input if system is a FALCON
-	LL_1khz_control_input.system_flags&=~SF_HL_CONTROL_ENABLED;
-	LL_1khz_control_input.system_flags&=~SF_DIRECT_MOTOR_CONTROL;
-#endif
+	if(WO_SDK.disable_motor_onoff_by_stick) LL_1khz_control_input.system_flags|=SF_SDK_DISABLE_MOTORONOFF_BY_STICK;
+	else LL_1khz_control_input.system_flags&=~SF_SDK_DISABLE_MOTORONOFF_BY_STICK;
 
-
-
-	LL_1khz_control_input.ctrl_flags=WO_CTRL_Input.ctrl;
-	LL_1khz_control_input.pitch=WO_CTRL_Input.pitch;
-	LL_1khz_control_input.roll=WO_CTRL_Input.roll;
-	LL_1khz_control_input.yaw=WO_CTRL_Input.yaw;
-	LL_1khz_control_input.thrust=WO_CTRL_Input.thrust;
-
-	if(WO_SDK.ctrl_mode==0x01)
+	if(WO_SDK.ctrl_mode==0x00) //direct individual motor control
 	{
+		LL_1khz_control_input.system_flags|=SF_DIRECT_MOTOR_CONTROL_INDIVIDUAL;
+		for(i=0;i<8;i++)
+		{
+			LL_1khz_control_input.direct_motor_control[i]=WO_Direct_Individual_Motor_Control.motor[i];
+		}
+	}
+	else if(WO_SDK.ctrl_mode==0x01) //direct motor control with standard output mapping
+	{
+		LL_1khz_control_input.system_flags|=SF_DIRECT_MOTOR_CONTROL;
 		LL_1khz_control_input.direct_motor_control[0]=WO_Direct_Motor_Control.pitch;
 		LL_1khz_control_input.direct_motor_control[1]=WO_Direct_Motor_Control.roll;
 		LL_1khz_control_input.direct_motor_control[2]=WO_Direct_Motor_Control.yaw;
 		LL_1khz_control_input.direct_motor_control[3]=WO_Direct_Motor_Control.thrust;
 	}
-
-/*	for(i=0;i<8;i++)
+	else if (WO_SDK.ctrl_mode==0x02) //attitude control
 	{
-		LL_1khz_control_input.direct_motor_control[i]=0;
+		LL_1khz_control_input.system_flags&=~(SF_DIRECT_MOTOR_CONTROL|SF_DIRECT_MOTOR_CONTROL_INDIVIDUAL|SF_WAYPOINT_MODE); //no additional system flag => attitude control is "standard mode"
+		LL_1khz_control_input.ctrl_flags=WO_CTRL_Input.ctrl;
+		LL_1khz_control_input.pitch=WO_CTRL_Input.pitch;
+		LL_1khz_control_input.roll=WO_CTRL_Input.roll;
+		LL_1khz_control_input.yaw=WO_CTRL_Input.yaw;
+		LL_1khz_control_input.thrust=WO_CTRL_Input.thrust;
 	}
-*/
+	else if (WO_SDK.ctrl_mode==0x03) //gps waypoint control
+	{
+			LL_1khz_control_input.system_flags|=SF_WAYPOINT_MODE;
+
+			//check if new command should be send
+
+			if (wpCtrlWpCmdUpdated)
+			{
+
+				if (wpCtrlWpCmd==WP_CMD_SINGLE_WP)
+				{
+					if (wpCtrlWpCmdUpdated==1)
+					{
+						LL_1khz_control_input.ctrl_flags&=0x00FF;
+						LL_1khz_control_input.ctrl_flags|=WP_CMD_SINGLE_WP_PART1<<8;
+
+						LL_1khz_control_input.pitch=wpToLL.X&0xFFFF;
+						LL_1khz_control_input.roll=wpToLL.X>>16;
+						LL_1khz_control_input.thrust=wpToLL.Y&0xFFFF;
+						LL_1khz_control_input.yaw=wpToLL.Y>>16;
+						LL_1khz_control_input.direct_motor_control[0]=wpToLL.height;
+						LL_1khz_control_input.direct_motor_control[1]=wpToLL.height>>8;
+						LL_1khz_control_input.direct_motor_control[2]=wpToLL.height>>16;
+						LL_1khz_control_input.direct_motor_control[3]=wpToLL.height>>24;
+						LL_1khz_control_input.direct_motor_control[4]=wpToLL.yaw;
+						LL_1khz_control_input.direct_motor_control[5]=wpToLL.yaw>>8;
+						LL_1khz_control_input.direct_motor_control[6]=wpToLL.yaw>>16;
+						LL_1khz_control_input.direct_motor_control[7]=wpToLL.yaw>>24;
+
+						wpCtrlWpCmdUpdated++;
+					}else if (wpCtrlWpCmdUpdated==2)
+					{
+						LL_1khz_control_input.ctrl_flags&=0x00FF;
+						LL_1khz_control_input.ctrl_flags|=WP_CMD_SINGLE_WP_PART2<<8;
+
+						LL_1khz_control_input.pitch=wpToLL.time;
+						LL_1khz_control_input.roll=wpToLL.cam_angle_pitch;
+						LL_1khz_control_input.thrust=wpToLL.pos_acc;
+						LL_1khz_control_input.yaw=wpToLL.chksum;
+						LL_1khz_control_input.direct_motor_control[0]=wpToLL.cam_angle_roll;
+						LL_1khz_control_input.direct_motor_control[1]=wpToLL.max_speed;
+						LL_1khz_control_input.direct_motor_control[2]=wpToLL.properties;
+						LL_1khz_control_input.direct_motor_control[3]=wpToLL.wp_number;
+						LL_1khz_control_input.direct_motor_control[4]=0;
+						LL_1khz_control_input.direct_motor_control[5]=0;
+						LL_1khz_control_input.direct_motor_control[6]=0;
+						LL_1khz_control_input.direct_motor_control[7]=0;
+						wpCtrlWpCmdUpdated=0;
+						wpCtrlNavStatus=0;
+					}
+				}else
+				{
+						LL_1khz_control_input.ctrl_flags&=0x00FF;
+						LL_1khz_control_input.ctrl_flags|=wpCtrlWpCmd<<8;
+					wpCtrlWpCmdUpdated=0;
+				}
+			}else
+			{
+				LL_1khz_control_input.ctrl_flags&=0x00FF;
+			}
+	}
+	else LL_1khz_control_input.system_flags&=~(SF_DIRECT_MOTOR_CONTROL|SF_DIRECT_MOTOR_CONTROL_INDIVIDUAL|SF_WAYPOINT_MODE);
+
 	if(pageselect==0)
 	{
 		//fill struct with 500Hz data
@@ -120,8 +241,10 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 		LL_1khz_control_input.numSV=GPS_Data.numSV;
 		LL_1khz_control_input.battery_voltage_1=HL_Status.battery_voltage_1;
 		LL_1khz_control_input.battery_voltage_2=HL_Status.battery_voltage_2;
-		LL_1khz_control_input.dummy_500Hz_2=0;
-		LL_1khz_control_input.dummy_500Hz_3=0;
+		LL_1khz_control_input.slowDataChannelDataShort=0;
+		LL_1khz_control_input.slowDataChannelDataChar=0;
+		LL_1khz_control_input.slowDataChannelSelect=0;
+
 
 		//write data
 		LL_write_ctrl_data(pageselect);
