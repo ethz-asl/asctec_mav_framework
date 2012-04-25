@@ -374,7 +374,7 @@ void SDK_mainloop(void)
 
     else if (cmdLLValid > 0 && (hli_config.mode_position_control == HLI_MODE_POSCTRL_LL || hli_config.mode_position_control == HLI_MODE_POSCTRL_OFF))
     {
-      writeCommand(cmdLL.x, cmdLL.y, cmdLL.yaw, cmdLL.z, hli_config.position_control_axis_enable, 1);
+      writeCommand(cmdLL.x, -cmdLL.y, -cmdLL.yaw, cmdLL.z, hli_config.position_control_axis_enable, 1);
     }
     else
     {
