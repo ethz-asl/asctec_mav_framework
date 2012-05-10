@@ -14,11 +14,11 @@ extern int ringbuffer(unsigned char, unsigned char*, unsigned int);
 void startAutoBaud(void);
 volatile extern char autobaud_in_progress;
 
-inline int writePacket2Ringbuffer(uint8_t descriptor, void * data, uint8_t length);
+int writePacket2Ringbuffer(uint8_t descriptor, void * data, uint8_t length);
 extern void uart0ISR(void);
 
-extern uint16_t crc16(void *, uint16_t count, uint16_t prev_crc);
-extern uint16_t crc_update(uint16_t, uint8_t);
+inline uint16_t crc16(void *, uint16_t count, uint16_t prev_crc);
+inline uint16_t crc_update(uint16_t, uint8_t);
 
 #define RBREAD 0
 #define RBWRITE 1
@@ -49,7 +49,7 @@ extern volatile unsigned int UART_rxGoodPacketCount;
 
 typedef struct
 {
-  uint8_t *buffer;
+  volatile uint8_t *buffer;
   uint8_t inUse;
   uint32_t bufferSize;
   uint32_t readIdx;
@@ -58,10 +58,10 @@ typedef struct
   uint32_t mask;
 }volatile Fifo;
 
-extern short uart0_min_tx_buffer;
-extern short uart0_min_rx_buffer;
+extern volatile short uart0_min_tx_buffer;
+extern volatile short uart0_min_rx_buffer;
 
-void Fifo_initialize(Fifo * fifo, uint8_t * buffer, uint32_t bufferSize);
+void Fifo_initialize(Fifo * fifo, volatile uint8_t * buffer, uint32_t bufferSize);
 inline uint8_t Fifo_writeByte(Fifo * fifo, uint8_t byte);
 inline uint8_t Fifo_writeBlock(Fifo * fifo, void *data, uint32_t length);
 inline uint8_t Fifo_readByte(Fifo * fifo, uint8_t * byte);

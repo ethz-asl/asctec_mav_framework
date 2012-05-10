@@ -15,10 +15,6 @@
 
 volatile unsigned char transmission_running = 0;
 
-unsigned char UART_syncstate = 0;
-unsigned int UART_rxcount = 0;
-unsigned char *UART_rxptr;
-
 unsigned uart0_rx_cpsr;
 unsigned uart0_tx_cpsr;
 
@@ -27,14 +23,14 @@ unsigned uart0_tx_cpsr;
 #define UART0_DISABLE_RX_INT uart0_rx_cpsr=disableIRQ();U0IER &= ~UIER_ERBFI;restoreIRQ(uart0_rx_cpsr);
 #define UART0_ENABLE_RX_INT  uart0_rx_cpsr=disableIRQ();U0IER |= UIER_ERBFI;restoreIRQ(uart0_rx_cpsr);
 
-short uart0_min_tx_buffer = UART0_TX_BUFFERSIZE;
-short uart0_min_rx_buffer = UART0_RX_BUFFERSIZE;
+volatile short uart0_min_tx_buffer = UART0_TX_BUFFERSIZE;
+volatile short uart0_min_rx_buffer = UART0_RX_BUFFERSIZE;
 
-uint8_t rxBuffer[UART0_RX_BUFFERSIZE];
+volatile uint8_t rxBuffer[UART0_RX_BUFFERSIZE];
 uint8_t rxParseBuffer[UART0_RX_BUFFERSIZE];
 Fifo rxFifo;
 
-uint8_t txBuffer[UART0_TX_BUFFERSIZE];
+volatile uint8_t txBuffer[UART0_TX_BUFFERSIZE];
 Fifo txFifo;
 
 volatile unsigned int UART_rxPacketCount = 0;
@@ -125,7 +121,7 @@ void uart0ISR(void) __irq
   VICVectAddr = 0; // Acknowledge Interrupt
 }
 
-void Fifo_initialize(Fifo * fifo, uint8_t * buffer, uint32_t bufferSize)
+void Fifo_initialize(Fifo * fifo, volatile uint8_t * buffer, uint32_t bufferSize)
 {
   fifo->buffer = buffer;
   fifo->bufferSize = bufferSize;
@@ -231,7 +227,6 @@ void parseRxFifo(void)
 
       rxCount = 0;
       checksum_received = 0;
-      UART_rxptr = rxParseBuffer;
       packetSize = 0;
       flag = 0;
     }
@@ -320,7 +315,7 @@ void parseRxFifo(void)
   //	UART0_ENABLE_RX_INT;
 }
 
-inline int writePacket2Ringbuffer(uint8_t descriptor, void * data, uint8_t length)
+int writePacket2Ringbuffer(uint8_t descriptor, void * data, uint8_t length)
 {
   static uint8_t header[] = {0xFF, 0x09, 0, 0};
   uint16_t checksum = 0;
@@ -448,7 +443,7 @@ void UART_send_ringbuffer(void)
   }
 }
 
-uint16_t crc_update(uint16_t crc, uint8_t data)
+inline uint16_t crc_update(uint16_t crc, uint8_t data)
 {
   data ^= (crc & 0xff);
   data ^= data << 4;
@@ -456,7 +451,7 @@ uint16_t crc_update(uint16_t crc, uint8_t data)
   return ((((uint16_t)data << 8) | ((crc >> 8) & 0xff)) ^ (uint8_t)(data >> 4) ^ ((uint16_t)data << 3));
 }
 
-uint16_t crc16(void* data, uint16_t cnt, uint16_t crc)
+inline uint16_t crc16(void* data, uint16_t cnt, uint16_t crc)
 {
   uint8_t * ptr = (uint8_t *)data;
   int i;

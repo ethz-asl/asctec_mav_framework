@@ -63,7 +63,7 @@ void EKFInterface::processEkfData(uint8_t * buf, uint32_t bufLength)
 
     msg->flag = asctec_hl_comm::mav_ekf::current_state;
 
-    msg->state.reserve(HLI_EKF_STATE_SIZE);
+    msg->state.resize(HLI_EKF_STATE_SIZE);
 
     for (uint32_t i = 0; i < HLI_EKF_STATE_SIZE; i++)
     {

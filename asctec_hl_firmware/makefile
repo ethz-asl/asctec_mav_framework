@@ -70,17 +70,23 @@ SRCARM = LL_HL_comm.c
 SRCARM += mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
+SRCARM += dekf.c
+SRCARM += uart.c
 
-#SRCARM += src/ssdk/ert_main.c
-#SRCARM += src/ssdk/onboard_matlab.c
-#SRCARM += src/ssdk/onboard_matlab_data.c
+SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_initialize.c
+SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_terminate.c
+SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation.c
+SRCARM += d_ekf/d_ekf_src/ekf/rt_nonfinite.c
+SRCARM += d_ekf/d_ekf_src/ekf/rt_pow32_snf.c
+SRCARM += d_ekf/d_ekf_src/ekf/rtGetInf.c
+SRCARM += d_ekf/d_ekf_src/ekf/rtGetNaN.c
 
 #Sources with interrupt routines in them
 SRCARMINT = $(TARGET).c
 SRCARMINT += hardware.c
 SRCARMINT += LPC2k_ee.c
 SRCARMINT += system.c
-SRCARMINT += uart.c
+#SRCARMINT += uart.c
 SRCARMINT += uart1.c
 SRCARMINT += syscalls.c
 SRCARMINT += i2c.c
@@ -121,7 +127,7 @@ FORMAT = binary
 # Optimization level, can be [0, 1, 2, 3, s]. 
 # 0 = turn off optimization. s = optimize for size.
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
-OPT = 2
+OPT = 3
 OPTINT = 0
 #OPT = 0
 
@@ -139,7 +145,7 @@ DEBUG = dwarf-2
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS = Common_WinARM/inc ssdk/include ../asctec_hl_comm/include/asctec_hl_comm
+EXTRAINCDIRS = Common_WinARM/inc ssdk/include ../asctec_hl_comm/include/asctec_hl_comm d_ekf/d_ekf_src
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
@@ -186,6 +192,7 @@ CFLAGS += -O$(OPT)
 CFLAGS += -Wall -Wcast-align -Wimplicit 
 CFLAGS += -Wpointer-arith -Wswitch
 CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+CFLAGS += -Winline
 CFLAGS += -Wa,-adhlns=$(subst $(suffix $<),.lst,$<) 
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 
@@ -196,6 +203,7 @@ INTCFLAGS += -O$(OPTINT)
 INTCFLAGS += -Wall -Wcast-align -Wimplicit 
 INTCFLAGS += -Wpointer-arith -Wswitch
 INTCFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+INTCFLAGS += -Winline
 INTCFLAGS += -Wa,-adhlns=$(subst $(suffix $<),.lst,$<) 
 INTCFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 

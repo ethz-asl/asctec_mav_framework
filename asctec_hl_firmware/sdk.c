@@ -1,33 +1,33 @@
 /*
 
-Copyright (c) 2011, Markus Achtelik, ASL, ETH Zurich, Switzerland
-You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
+ Copyright (c) 2011, Markus Achtelik, ASL, ETH Zurich, Switzerland
+ You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
 
-All rights reserved.
+ All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-* Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-* Neither the name of ETHZ-ASL nor the
-names of its contributors may be used to endorse or promote products
-derived from this software without specific prior written permission.
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ * Neither the name of ETHZ-ASL nor the
+ names of its contributors may be used to endorse or promote products
+ derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL ETHZ-ASL BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL ETHZ-ASL BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-*/
+ */
 
 #include "main.h"
 #include "system.h"
@@ -39,6 +39,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "LPC214x.h"
 #include "hardware.h"
 
+#include <ekf/autogen_ekf_propagation.h>
+#include <ekf/autogen_ekf_propagation_initialize.h>
+
 struct WO_SDK_STRUCT WO_SDK;
 struct WO_CTRL_INPUT WO_CTRL_Input;
 struct RO_RC_DATA RO_RC_Data;
@@ -47,13 +50,13 @@ struct WO_DIRECT_MOTOR_CONTROL WO_Direct_Motor_Control;
 #include "gpsmath.h"
 
 #include <ert_main.h>
+#include "dekf.h"
 
 // time synchronization
 volatile int64_t timestamp = 0;
 int64_t timeOffset = 0;
 unsigned short time_step = 2000;
 int64_t time_correction = 0;
-
 
 short cmdLLValid = 0;
 unsigned char cmdLLNew = 0;
@@ -75,6 +78,9 @@ HLI_STATUS statusData;
 short motor_state = -1;
 short motor_state_count = 0;
 unsigned int sdkLoops = 0;
+
+// dekf variables
+DekfContext dekf;
 
 // set up data structures for receiving data ##################################
 
@@ -102,8 +108,7 @@ PacketInfo *packetSSDKParams;
 HLI_CMD_LL controlEnable;
 PacketInfo *packetControlEnable;
 
-HLI_EKF_STATE ekfState;
-PacketInfo *packetEkfState;
+// EKF state and packet info are defined in dekf.h
 
 HLI_BAUDRATE baudrate;
 PacketInfo *packetBaudrate;
@@ -148,11 +153,13 @@ void sdkInit(void)
   packetControlEnable = registerPacket(HLI_PACKET_ID_CONTROL_ENABLE, &controlEnable);
   packetBaudrate = registerPacket(HLI_PACKET_ID_BAUDRATE, &baudrate);
   packetSubscription = registerPacket(HLI_PACKET_ID_SUBSCRIPTION, &subscription);
-  packetEkfState = registerPacket(HLI_PACKET_ID_EKF_STATE, &ekfState);
   packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &config);
 
   UART0_rxFlush();
   UART0_txFlush();
+
+  // init dekf, also packet subscription takes place here
+  DEKF_init(&dekf, &extPosition);
 
   startAutoBaud();
 }
@@ -241,7 +248,8 @@ void SDK_mainloop(void)
 
   // decide which position/state input we take for position control
   // SSDK operates in NED --> convert from ENU
-  switch(config.mode_state_estimation){
+  switch (config.mode_state_estimation)
+  {
     case HLI_MODE_STATE_ESTIMATION_HL_SSDK:
       extPositionValid = 1;
       extPosition.bitfield = 0;
@@ -278,6 +286,10 @@ void SDK_mainloop(void)
       extPosition.qualVy = ext_position_update.qualVy;
       extPosition.qualVz = ext_position_update.qualVz;
       break;
+    case HLI_MODE_STATE_ESTIMATION_HL_EKF:
+      DEKF_step(&dekf, timestamp);
+      extPositionValid = 1;
+      break;
     default:
       extPositionValid = 0;
   }
@@ -296,13 +308,15 @@ void SDK_mainloop(void)
   { // motors are either stopped or running --> normal operation
 
     // commands are always written to LL by the Matlab controller, decide if we need to overwrite them
-    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && config.mode_position_control == HLI_MODE_POSCTRL_HL)
+    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && config.mode_position_control
+        == HLI_MODE_POSCTRL_HL)
     {
       WO_CTRL_Input.ctrl = config.position_control_axis_enable;
       WO_SDK.ctrl_enabled = 1;
     }
 
-    else if (cmdLLValid > 0 && (config.mode_position_control == HLI_MODE_POSCTRL_LL || config.mode_position_control == HLI_MODE_POSCTRL_OFF))
+    else if (cmdLLValid > 0 && (config.mode_position_control == HLI_MODE_POSCTRL_LL || config.mode_position_control
+        == HLI_MODE_POSCTRL_OFF))
     {
       writeCommand(cmdLL.x, cmdLL.y, cmdLL.yaw, cmdLL.z, config.position_control_axis_enable, 1);
     }
@@ -329,7 +343,7 @@ void SDK_mainloop(void)
       writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
       motor_state = -1;
     }
-    motor_state_count ++;
+    motor_state_count++;
   }
   else if (motor_state == 0)
   {
@@ -368,25 +382,35 @@ void SDK_mainloop(void)
   {
     sendImuData();
   }
+
   if (checkTxPeriod(subscription.rcdata))
   {
     sendRcData();
   }
+
   if (checkTxPeriod(subscription.gps))
   {
     sendGpsData();
   }
+
   if ((sdkLoops + 20) % 500 == 0)
   {
     sendStatus();
     writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_STATUS, (unsigned char*)&ssdk_status, sizeof(ssdk_status));
   }
+
   if (checkTxPeriod(subscription.ssdk_debug))
   {
     ssdk_debug.timestamp = timestamp;
     writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_DEBUG, (unsigned char*)&ssdk_debug, sizeof(ssdk_debug));
   }
-//
+
+  if (checkTxPeriod(subscription.ekf_state))
+  {
+//    sendEkfState();
+    DEKF_sendState(&dekf, timestamp);
+  }
+
   UART_send_ringbuffer();
 
   synchronizeTime();
@@ -480,8 +504,8 @@ inline void sendStatus(void)
   else if (!(LL_1khz_attitude_data.status2 & 0x1))
     statusData.motors = -1;
 
-  statusData.debug1 = uart0_min_rx_buffer;
-  statusData.debug2 = uart0_min_tx_buffer;
+//  statusData.debug1 = uart0_min_rx_buffer;
+//  statusData.debug2 = uart0_min_tx_buffer;
 
   statusData.state_estimation = config.mode_state_estimation;
   statusData.position_control = config.mode_position_control;
@@ -509,7 +533,7 @@ inline void synchronizeTime()
   // check for timesync packet
   if (packetTimeSync->updated)
   {
-    timeOffset = (900*timeOffset + 100 * (timeSync.ts1 * 2 - timeSync.tc1 - timestamp) / 2) / 1000;
+    timeOffset = (900 * timeOffset + 100 * (timeSync.ts1 * 2 - timeSync.tc1 - timestamp) / 2) / 1000;
     statusData.timesync_offset = timeOffset;
 
     if (timeOffset > 1e7 || timeOffset < -1e7)
@@ -562,7 +586,7 @@ inline void watchdog(void)
   static uint32_t lastTxPackets = 0;
 
   // check if a valid packet arrived in the HLI_COMMUNICATION_TIMEOUT s
-  if ((sdkLoops % (ControllerCyclesPerSecond  * HLI_COMMUNICATION_TIMEOUT )) == 0)
+  if ((sdkLoops % (ControllerCyclesPerSecond * HLI_COMMUNICATION_TIMEOUT)) == 0)
   {
     if (UART_rxGoodPacketCount == lastTxPackets)
     {
