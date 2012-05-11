@@ -220,7 +220,7 @@ void parseRxFifo(void)
 
     if (syncstate == 0)
     {
-      if (rxdata == '>')
+      if (rxdata == 'a')
         syncstate++;
       else
         syncstate = 0;

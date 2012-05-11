@@ -180,17 +180,17 @@ inline void angle2quaternion(const double &roll, const double &pitch, const doub
   sincos(yaw * 0.5, &sY2, &cY2);
 
   // TODO: change rotation order
-  // this follows asctec's current rotation order: Rz*Rx*Ry
-  *w = cP2 * cR2 * cY2 - sP2 * sR2 * sY2;
-  *x = cP2 * cY2 * sR2 - cR2 * sP2 * sY2;
-  *y = cR2 * cY2 * sP2 + cP2 * sR2 * sY2;
-  *z = cP2 * cR2 * sY2 + cY2 * sP2 * sR2;
-
-  // change it to Rz*Ry*Rx in case that will be changed on the LL:
-//  *w = cP2 * cR2 * cY2 + sP2 * sR2 * sY2;
+  // this follows pre- 2012 firmware rotation order: Rz*Rx*Ry
+//  *w = cP2 * cR2 * cY2 - sP2 * sR2 * sY2;
 //  *x = cP2 * cY2 * sR2 - cR2 * sP2 * sY2;
 //  *y = cR2 * cY2 * sP2 + cP2 * sR2 * sY2;
-//  *z = cP2 * cR2 * sY2 - cY2 * sP2 * sR2;
+//  *z = cP2 * cR2 * sY2 + cY2 * sP2 * sR2;
+
+  // Rz*Ry*Rx for 2012 firmware on the LL:
+  *w = cP2 * cR2 * cY2 + sP2 * sR2 * sY2;
+  *x = cP2 * cY2 * sR2 - cR2 * sP2 * sY2;
+  *y = cR2 * cY2 * sP2 + cP2 * sR2 * sY2;
+  *z = cP2 * cR2 * sY2 - cY2 * sP2 * sR2;
 }
 
 template<typename T>

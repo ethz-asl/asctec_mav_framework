@@ -33,9 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __EKF_INTERFACE_H__
 
 #include <ros/ros.h>
-#include <asctec_hl_comm/DoubleArrayStamped.h>
-#include <asctec_hl_comm/mav_ekf.h>
-#include <dynamic_reconfigure/server.h>
+#include <sensor_fusion_core/ext_ekf.h>
 
 #include "comm.h"
 
@@ -52,7 +50,7 @@ private:
   HLI_EKF_STATE ekf_state_msg_;
 
   void processEkfData(uint8_t * buf, uint32_t bufLength);
-  void stateCallback(const asctec_hl_comm::mav_ekfConstPtr & msg);
+  void stateCallback(const sensor_fusion_core::ext_ekfConstPtr & msg);
 
 public:
   EKFInterface(ros::NodeHandle & nh, CommPtr & comm);

@@ -1,5 +1,5 @@
 /*
-
+Copyright (c) 2011, Ascending Technologies GmbH
 Copyright (c) 2011, Markus Achtelik, ASL, ETH Zurich, Switzerland
 You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
 
@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef SDK_
 #define SDK_
 
-extern void SDK_mainloop(void);
+void SDK_mainloop(void);
 
 #include <HL_interface.h>
 
@@ -56,6 +56,9 @@ inline void sendStatus(void);
 
 /// assembles rc packet and sends it
 inline void sendRcData(void);
+
+/// assembles magnetic compass data packet and sends it
+inline void sendMagData(void);
 
 /// adjusts HLP time to host PC time
 /***
@@ -84,6 +87,8 @@ extern HLI_EXT_POSITION extPosition;
 extern HLI_CMD_HL extPositionCmd;
 extern HLI_STATUS statusData;
 
+extern HLI_CONFIG hli_config;
+
 /// current time. Gets incremented by timer0 and gets corrected by synchronizeTime().
 extern volatile int64_t timestamp;
 
@@ -92,14 +97,24 @@ extern volatile int64_t timestamp;
 
 struct WO_SDK_STRUCT
 {
-
+  /// selects the type of commands being sent to the LLP
+  /**
+     0x00: direct individual motor control: individual commands for motors
+     0x01: direct motor control using standard output mapping: commands are interpreted as pitch, roll, yaw and thrust inputs; no attitude controller active
+     0x02: attitude and throttle control: commands are input for standard attitude controller
+     0x03: GPS waypoint control
+   */
   unsigned char ctrl_mode;
-  //0x00: "standard scientific interface" => send R/C stick commands to LL
-  //0x01:	direct motor control
-  //0x02: waypoint control (not yet implemented)
 
-  unsigned char ctrl_enabled; //0x00: Control commands are ignored by LL processor
-  //0x01: Control commands are accepted by LL processor
+  /// selects if if commands get accepted by the LLP
+  /**
+      0x00: Control commands are ignored by LL processor
+      0x01: Control commands are accepted by LL processor
+   */
+  unsigned char ctrl_enabled;
+
+  /// if set, pilot stick input will not start / stop motors unless this is implemented in your SDK code!
+  unsigned char disable_motor_onoff_by_stick;
 
 };
 extern struct WO_SDK_STRUCT WO_SDK;
@@ -139,20 +154,33 @@ struct WO_DIRECT_MOTOR_CONTROL
 };
 extern struct WO_DIRECT_MOTOR_CONTROL WO_Direct_Motor_Control;
 
-struct WO_CTRL_INPUT
-{ //serial commands (= Scientific Interface)
-  short pitch; //Pitch input: -2047..+2047 (0=neutral)
-  short roll; //Roll input: -2047..+2047	(0=neutral)
-  short yaw; //(=R/C Stick input) -2047..+2047 (0=neutral)
-  short thrust; //Collective: 0..4095 = 0..100%
-  short ctrl; /*control byte:
-   bit 0: pitch control enabled
-   bit 1: roll control enabled
-   bit 2: yaw control enabled
-   bit 3: thrust control enabled
-   bit 4: Height control enabled
-   bit 5: GPS position control enabled
-   */
+struct WO_DIRECT_INDIVIDUAL_MOTOR_CONTROL
+{
+	unsigned char motor[8];
+
+	/*
+	 * commands will be directly interpreted by each motor individually
+	 *
+	 * range: 0..200 = 0..100 %; 0 = motor off! Please check for command != 0 during flight, as a motor restart might take > 1s!
+	 */
+
+};
+extern struct WO_DIRECT_INDIVIDUAL_MOTOR_CONTROL WO_Direct_Individual_Motor_Control;
+
+
+struct WO_CTRL_INPUT {	//serial commands (= Scientific Interface)
+	short pitch;	//Pitch input: -2047..+2047 (0=neutral)
+	short roll;		//Roll input: -2047..+2047	(0=neutral)
+	short yaw;		//(=R/C Stick input) -2047..+2047 (0=neutral)
+	short thrust;	//Collective: 0..4095 = 0..100%
+	short ctrl;				/*control byte:
+							bit 0: pitch control enabled
+							bit 1: roll control enabled
+							bit 2: yaw control enabled
+							bit 3: thrust control enabled
+							bit 4: Height control enabled
+							bit 5: GPS position control enabled
+							*/
 };
 extern struct WO_CTRL_INPUT WO_CTRL_Input;
 

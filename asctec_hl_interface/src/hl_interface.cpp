@@ -33,8 +33,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "helper.h"
 
 HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
-  nh_(nh), pnh_("~"), comm_(comm), diag_updater_(),
-      diag_imu_freq_(diagnostic_updater::FrequencyStatusParam(&diag_imu_freq_min_, &diag_imu_freq_max_, 0, 5))
+  nh_(nh), pnh_("~"), comm_(comm), gps_status_(sensor_msgs::NavSatStatus::STATUS_NO_FIX), gps_satellites_used_(0),
+      diag_updater_(), diag_imu_freq_(diagnostic_updater::FrequencyStatusParam(&diag_imu_freq_min_,
+                                                                               &diag_imu_freq_max_, 0, 5))
 {
   pnh_.param("frame_id", frame_id_, std::string("fcu"));
   pnh_.param("k_stick", k_stick_, 25);
@@ -47,8 +48,10 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   imu_pub_ = nh_.advertise<asctec_hl_comm::mav_imu> ("imu_custom", 1);
   imu_ros_pub_ = nh_.advertise<sensor_msgs::Imu> ("imu", 1);
   gps_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("gps", 1);
+  gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustom> ("gps_custom", 1);
   rc_pub_ = nh_.advertise<asctec_hl_comm::mav_rcdata> ("rcdata", 1);
   status_pub_ = nh_.advertise<asctec_hl_comm::mav_status> ("status", 1);
+  mag_pub_ = nh_.advertise<geometry_msgs::Vector3Stamped> ("mag", 1);
 
   control_sub_ = nh_.subscribe("control", 1, &HLInterface::controlCmdCallback, this);
 
@@ -73,6 +76,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   comm_->registerCallback(HLI_PACKET_ID_GPS, &HLInterface::processGpsData, this);
   comm_->registerCallback(HLI_PACKET_ID_STATUS, &HLInterface::processStatusData, this);
   comm_->registerCallback(HLI_PACKET_ID_TIMESYNC, &HLInterface::processTimeSyncData, this);
+  comm_->registerCallback(HLI_PACKET_ID_MAG, &HLInterface::processMagData, this);
 }
 
 HLInterface::~HLInterface()
@@ -86,15 +90,15 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   static int seq = 0;
   diag_imu_freq_.tick();
 
-  roll_ = helper::asctecAttitudeToSI(data->ang_roll);
-  pitch_ = helper::asctecAttitudeToSI(data->ang_pitch);
-  yaw_ = helper::asctecAttitudeToSI(data->ang_yaw);
+  double roll = helper::asctecAttitudeToSI(data->ang_roll);
+  double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
+  double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
 
-  if (yaw_ > M_PI)
-    yaw_ -= 2 * M_PI;
+  if (yaw > M_PI)
+    yaw -= 2 * M_PI;
 
-  height_ = data->height * 0.001;
-  differential_height_ = data->differential_height * 0.001;
+  double height = data->height * 0.001;
+  double differential_height = data->differential_height * 0.001;
 
   uint32_t subs_imu = imu_pub_.getNumSubscribers();
   uint32_t subs_imu_ros = imu_ros_pub_.getNumSubscribers();
@@ -102,7 +106,7 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   if (subs_imu > 0 || subs_imu_ros > 0)
   {
     geometry_msgs::Quaternion q;
-    helper::angle2quaternion(roll_, pitch_, yaw_, &q.w, &q.x, &q.y, &q.z);
+    helper::angle2quaternion(roll, pitch, yaw, &q.w, &q.x, &q.y, &q.z);
 
     if (subs_imu > 0)
     {
@@ -117,8 +121,8 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
       msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
       msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
       msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
-      msg->differential_height = differential_height_;
-      msg->height = height_;
+      msg->differential_height = differential_height;
+      msg->height = height;
       msg->orientation = q;
 
       imu_pub_.publish(msg);
@@ -152,6 +156,7 @@ void HLInterface::processGpsData(uint8_t * buf, uint32_t bufLength)
   HLI_GPS* data = (HLI_GPS*)buf;
   static int seq = 0;
   sensor_msgs::NavSatFixPtr gps_fix(new sensor_msgs::NavSatFix);
+  asctec_hl_comm::GpsCustomPtr gps_custom(new asctec_hl_comm::GpsCustom);
 
   gps_fix->header.stamp = ros::Time(((double)data->timestamp) * 1.0e-6);
   gps_fix->header.seq = seq;
@@ -178,12 +183,31 @@ void HLInterface::processGpsData(uint8_t * buf, uint32_t bufLength)
   else
     gps_fix->status.status = sensor_msgs::NavSatStatus::STATUS_NO_FIX;
 
+  gps_custom->header = gps_fix->header;
+  gps_custom->status = gps_fix->status;
+  gps_custom->longitude = gps_fix->longitude;
+  gps_custom->latitude = gps_fix->latitude;
+  gps_custom->altitude = gps_fix->altitude;
+  gps_custom->position_covariance = gps_fix->position_covariance;
+  gps_custom->position_covariance_type = gps_fix->position_covariance_type;
+
+  gps_custom->velocity_x = static_cast<double> (data->speedX) * 1.0e-3;
+  gps_custom->velocity_y = static_cast<double> (data->speedY) * 1.0e-3;
+
+  gps_custom->pressure_height = static_cast<double>(data->pressure_height) * 1.0e-3;
+
+  // TODO: check covariance
+  double var_vel = static_cast<double> (data->speedAccuracy) * 1.0e-3 / 3.0; // accuracy, 3 sigma bound ???
+  var_vel *= var_vel;
+  gps_custom->velocity_covariance[0] = gps_custom->velocity_covariance[3] = var_vel;
+
   // copy this for the other status message
   gps_status_ = gps_fix->status.status;
   gps_satellites_used_ = data->numSatellites;
 
   seq++;
   gps_pub_.publish(gps_fix);
+  gps_custom_pub_.publish(gps_custom);
 }
 
 void HLInterface::processRcData(uint8_t * buf, uint32_t bufLength)
@@ -328,15 +352,18 @@ void HLInterface::diagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
   std::string summary_message = "OK";
 
   // TODO: are these thresholds ok?
-  if (status_.battery_voltage < 10.4)
-  {
-    summary_level = diagnostic_msgs::DiagnosticStatus::WARN;
-    summary_message = "battery voltage low";
-  }
-  else if (status_.battery_voltage < 9.5)
+
+  if (status_.battery_voltage < (config_.battery_warning - 0.5))
   {
     summary_level = diagnostic_msgs::DiagnosticStatus::ERROR;
     summary_message = "battery voltage critical - land now !!!";
+    ROS_ERROR_STREAM_THROTTLE(1, "" << summary_message << ": " << status_.battery_voltage << " V");
+  }
+  else if (status_.battery_voltage < config_.battery_warning)
+  {
+    summary_level = diagnostic_msgs::DiagnosticStatus::WARN;
+    summary_message = "battery voltage low";
+    ROS_WARN_STREAM_THROTTLE(1, "" << summary_message << ": " << status_.battery_voltage << " V");
   }
 
   stat.summary(summary_level, summary_message);
@@ -361,24 +388,32 @@ void HLInterface::diagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
 
 void HLInterface::processTimeSyncData(uint8_t * buf, uint32_t bufLength)
 {
-  static bool synced_once = false;
   HLI_TIMESYNC data = *(HLI_TIMESYNC*)buf;
 
-  if (!synced_once)
-  {
-    data.ts1 = 1e12; // cause a huge offset to force AP to sync
-    synced_once = true;
-    ROS_INFO_STREAM("forced imu to sync");
-  }
-  else
-  {
-    data.ts1 = (uint64_t)(ros::Time::now().toSec() * 1.0e6);
-  }
+  data.ts1 = (uint64_t)(ros::Time::now().toSec() * 1.0e6);
 
   comm_->sendPacket(HLI_PACKET_ID_TIMESYNC, data);
 
   // warn if imu time is too far away from pc time. At low baudrates, the IMU will take longer to sync.
   ROS_WARN_STREAM_COND(std::abs(status_.timesync_offset) > 0.002, "imu time is off by "<<status_.timesync_offset * 1e3 <<" ms");
+}
+
+void HLInterface::processMagData(uint8_t * buf, uint32_t bufLength)
+{
+  HLI_MAG* data = (HLI_MAG*)buf;
+  static int seq = 0;
+  geometry_msgs::Vector3StampedPtr msg(new geometry_msgs::Vector3Stamped);
+
+  msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+  msg->header.frame_id = frame_id_;
+  msg->header.seq = seq;
+
+  msg->vector.x = data->x;
+  msg->vector.y = data->y;
+  msg->vector.z = data->z;
+
+  seq++;
+  mag_pub_.publish(msg);
 }
 
 bool HLInterface::cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req,
@@ -618,6 +653,14 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   HLI_CMD_HL ctrlHL;
   static unsigned int seq = 1; // <-- set to one, otherwise first packet doesn't get through
 
+  if (std::abs(msg.yaw) > M_PI)
+  {
+    ROS_WARN("yaw has to be in [-pi ... pi], got %f instead", msg.yaw);
+    if (ctrl_result != NULL)
+      ctrl_result->type = -1;
+    return;
+  }
+
   ctrlHL.seq = seq;
   ctrlHL.vX = 0;
   ctrlHL.vX = 0;
@@ -653,7 +696,7 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
 void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint32_t level)
 {
 
-  if (level & asctec_hl_interface::HLInterface_MODE)
+  if (level & asctec_hl_interface::HLInterface_HLI_CONFIG)
   {
     /** bits for the control byte:
      * bit 0: pitch control enabled
@@ -698,6 +741,8 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
     else
       cfg.mode_state_estimation = HLI_MODE_STATE_ESTIMATION_OFF;
 
+    cfg.battery_warning_voltage = static_cast<uint16_t>(config.battery_warning * 1000); // convert to mV
+
     if(!comm_->sendPacketAck(HLI_PACKET_ID_CONFIG, cfg)){
       config.enable_x = config_.enable_x;
       config.enable_y = config_.enable_y;
@@ -705,6 +750,7 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
       config.enable_yaw = config_.enable_yaw;
       config.position_control = config_.position_control;
       config.state_estimation = config_.state_estimation;
+      config.battery_warning = config_.battery_warning;
     }
   }
 
@@ -716,6 +762,7 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
     ps.gps = helper::rateToPeriod(config.packet_rate_gps);
     ps.ssdk_debug = helper::rateToPeriod(config.packet_rate_ssdk_debug);
     ps.ekf_state = helper::rateToPeriod(config.packet_rate_ekf_state);
+    ps.mag = helper::rateToPeriod(config.packet_rate_mag);
 
     diag_imu_freq_min_ = 0.95 * config.packet_rate_imu;
     diag_imu_freq_max_ = 1.05 * config.packet_rate_imu;
@@ -726,6 +773,7 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
       config.packet_rate_gps = config_.packet_rate_gps;
       config.packet_rate_ssdk_debug = config_.packet_rate_ssdk_debug;
       config.packet_rate_ekf_state = config_.packet_rate_ekf_state;
+      config.packet_rate_mag = config_.packet_rate_mag;
     }
   }
 

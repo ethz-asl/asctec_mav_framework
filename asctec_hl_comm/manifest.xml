@@ -10,6 +10,7 @@
   <url>http://ros.org/wiki/asctec_hl_comm</url>
   <depend package="actionlib_msgs"/>
   <depend package="geometry_msgs"/>
+  <depend package="sensor_msgs"/>
   <export>
     <cpp cflags="-I${prefix}/include -I${prefix}/msg/cpp -I${prefix}/srv/cpp" />
   </export>

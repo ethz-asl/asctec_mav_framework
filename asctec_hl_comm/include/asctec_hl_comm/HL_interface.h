@@ -57,6 +57,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HLI_PACKET_ID_SSDK_STATUS               0x10    ///< SSDK status packet
 #define HLI_PACKET_ID_ACK                       0x11    ///< Acknowledge packet
 #define HLI_PACKET_ID_CONFIG                    0x12    ///< Acknowledge packet
+#define HLI_PACKET_ID_MAG                       0x13    ///< Magnetic compass data packet
 
 
 // flight mode defines for communication with LL processor ----------------------------------------------
@@ -73,7 +74,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HLI_GPS_BIT                             0x20
 
 // communication defaults
-#define HLI_COMMUNICATION_TIMEOUT               10
+#define HLI_COMMUNICATION_TIMEOUT               3
 #define HLI_DEFAULT_BAUDRATE                    57600
 #define HLI_DEFAULT_PERIOD_IMU                  20
 #define HLI_DEFAULT_PERIOD_GPS                  200
@@ -140,6 +141,9 @@ __attribute__((packed))
 
   /// height [mm]
   uint32_t height;
+
+  /// pressure height [mm]
+  int32_t pressure_height;
 
   /// speed in x (E/W) and y(N/S) in mm/s
   int32_t speedX;
@@ -319,6 +323,7 @@ __attribute__((packed))
   uint16_t ssdk_debug; ///< debug channels from the ssdk, 200 ms
   uint16_t gps; ///< gps data, 200 ms
   uint16_t ekf_state; ///< pose ekf state, 0 --> set to zero if you don't want to have it
+  uint16_t mag; ///< magnetic compass packet
 }HLI_SUBSCRIPTION;
 
 /// configuration packet for HL processor
@@ -328,6 +333,7 @@ __attribute__((packed))
   uint16_t mode_state_estimation;
   uint16_t mode_position_control;
   uint16_t position_control_axis_enable;
+  uint16_t battery_warning_voltage;
 }HLI_CONFIG;
 
 /// packet for SSDK status
@@ -343,5 +349,16 @@ __attribute__((packed))
 {
   uint8_t ack_packet;
 }HLI_ACK;
+
+/// packet with magnetic compass readings
+typedef struct
+__attribute__((packed))
+{
+  int64_t timestamp;
+
+  int16_t x;
+  int16_t y;
+  int16_t z;
+}HLI_MAG;
 
 #endif

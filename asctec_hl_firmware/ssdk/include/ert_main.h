@@ -12,6 +12,8 @@
 
 void rt_OneStep(void);
 
+extern void onboard_matlab_initialize(void);
+
 extern short matlab_switch_debug_packet;
 extern HLI_SSDK_DEBUG ssdk_debug;
 extern HLI_SSDK_PARAMS ssdk_params, ssdk_params_tmp;

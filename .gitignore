@@ -23,4 +23,14 @@ asctec_hl_interface/cfg/hl_interface.cfgc
 asctec_hl_interface/cfg/ssdk.cfgc
 asctec_hl_interface/docs/
 asctec_hl_interface/src/asctec_hl_interface/
-
+asctec_hl_firmware/d_ekf/d_ekf_src/ekf/html
+asctec_hl_firmware/.dep/
+asctec_hl_firmware/.settings/
+asctec_hl_firmware/d_ekf/autogen_ekf_propagation.m
+asctec_hl_firmware/d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_ref.rsp
+asctec_hl_firmware/d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_rtw.mk
+asctec_hl_firmware/d_ekf/d_ekf_src/ekf/buildInfo.mat
+asctec_hl_firmware/d_ekf/d_ekf_src/ekf/pos_ekf_ref.rsp
+asctec_hl_firmware/d_ekf/d_ekf_src/ekf/pos_ekf_rtw.mk
+asctec_hl_firmware/d_ekf/d_ekf_src/ekf/rtw_proj.tmw
+asctec_hl_gps/bin/

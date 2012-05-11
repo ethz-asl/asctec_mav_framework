@@ -41,8 +41,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <asctec_hl_comm/mav_ctrl.h>
 #include <asctec_hl_comm/mav_imu.h>
 #include <asctec_hl_comm/mav_status.h>
+#include <asctec_hl_comm/GpsCustom.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <geometry_msgs/Vector3Stamped.h>
 
 // service includes
 #include <asctec_hl_comm/MavCtrlSrv.h>
@@ -73,10 +75,12 @@ private:
   std::string frame_id_;
 
   ros::Publisher gps_pub_;
+  ros::Publisher gps_custom_pub_;
   ros::Publisher imu_ros_pub_; ///< publisher for sensor_msgs/Imu message
   ros::Publisher imu_pub_; ///< publisher for custom asctec_hl_comm/mav_imu message
   ros::Publisher rc_pub_;
   ros::Publisher status_pub_;
+  ros::Publisher mag_pub_;
   ros::Subscriber control_sub_;
 
   ros::ServiceServer motor_srv_;
@@ -89,6 +93,7 @@ private:
   void processStatusData(uint8_t * buf, uint32_t bufLength);
   void processTimeSyncData(uint8_t * buf, uint32_t bufLength);
   void processPoseEKFData(uint8_t * buf, uint32_t bufLength);
+  void processMagData(uint8_t * buf, uint32_t bufLength);
 
   /// service to start/stop motors
   bool cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req, asctec_hl_comm::mav_ctrl_motors::Response &resp);
@@ -120,12 +125,6 @@ private:
   int16_t gps_status_;
   int16_t gps_satellites_used_;
 
-
-  double roll_;
-  double pitch_;
-  double yaw_;
-  double height_;
-  double differential_height_;
   double angular_velocity_variance_;
   double linear_acceleration_variance_;
   asctec_hl_comm::mav_status status_;

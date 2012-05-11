@@ -46,6 +46,7 @@ struct WO_SDK_STRUCT WO_SDK;
 struct WO_CTRL_INPUT WO_CTRL_Input;
 struct RO_RC_DATA RO_RC_Data;
 struct WO_DIRECT_MOTOR_CONTROL WO_Direct_Motor_Control;
+struct WO_DIRECT_INDIVIDUAL_MOTOR_CONTROL WO_Direct_Individual_Motor_Control;
 
 #include "gpsmath.h"
 
@@ -70,6 +71,7 @@ HLI_IMU imuData;
 HLI_RCDATA rcData;
 HLI_GPS gpsData;
 HLI_SSDK_STATUS ssdk_status;
+HLI_MAG mag_data;
 
 // declared external in sdk.h, so that the ssdk can access it
 HLI_EXT_POSITION extPosition;
@@ -78,6 +80,8 @@ HLI_STATUS statusData;
 short motor_state = -1;
 short motor_state_count = 0;
 unsigned int sdkLoops = 0;
+
+unsigned int ssdk_reset_state = 0;
 
 // dekf variables
 DekfContext dekf;
@@ -117,8 +121,8 @@ PacketInfo *packetBaudrate;
 HLI_SUBSCRIPTION subscription;
 PacketInfo *packetSubscription;
 
-// config packet
-HLI_CONFIG config;
+// config packet, declared external in sdk.h
+HLI_CONFIG hli_config;
 PacketInfo *packetConfig;
 
 // ######################################################################################
@@ -132,9 +136,10 @@ void sdkInit(void)
 
   extPositionValid = 0;
 
-  config.mode_position_control = HLI_MODE_POSCTRL_OFF;
-  config.mode_state_estimation = HLI_MODE_STATE_ESTIMATION_OFF;
-  config.position_control_axis_enable = 0;
+  hli_config.mode_position_control = HLI_MODE_POSCTRL_OFF;
+  hli_config.mode_state_estimation = HLI_MODE_STATE_ESTIMATION_OFF;
+  hli_config.position_control_axis_enable = 0;
+  hli_config.battery_warning_voltage = BATTERY_WARNING_VOLTAGE;
 
   // set default packet rates
   subscription.imu = HLI_DEFAULT_PERIOD_IMU;
@@ -153,13 +158,42 @@ void sdkInit(void)
   packetControlEnable = registerPacket(HLI_PACKET_ID_CONTROL_ENABLE, &controlEnable);
   packetBaudrate = registerPacket(HLI_PACKET_ID_BAUDRATE, &baudrate);
   packetSubscription = registerPacket(HLI_PACKET_ID_SUBSCRIPTION, &subscription);
-  packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &config);
+  packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &hli_config);
 
   UART0_rxFlush();
   UART0_txFlush();
 
+  // init ssdk
+  onboard_matlab_initialize();
+
   // init dekf, also packet subscription takes place here
   DEKF_init(&dekf, &extPosition);
+
+  extPosition.bitfield = 0;
+  extPosition.count = 0;
+  extPosition.heading = 0;
+  extPosition.x = 0;
+  extPosition.y = 0;
+  extPosition.z = 0;
+  extPosition.vX = 0;
+  extPosition.vY = 0;
+  extPosition.vZ = 0;
+  extPosition.qualX = 0;
+  extPosition.qualY = 0;
+  extPosition.qualZ = 0;
+  extPosition.qualVx = 0;
+  extPosition.qualVy = 0;
+  extPosition.qualVz = 0;
+
+  extPositionCmd.heading = 0;
+  extPositionCmd.bitfield = 0;
+  extPositionCmd.x = 0;
+  extPositionCmd.y = 0;
+  extPositionCmd.z = 0;
+  extPositionCmd.vZ = 2000;
+  extPositionCmd.vY = 2000;
+  extPositionCmd.vZ = 2000;
+  extPositionCmd.vYaw = 45000;
 
   startAutoBaud();
 }
@@ -184,7 +218,8 @@ void SDK_mainloop(void)
 {
   sdkCycleStartTime = T1TC;
 
-  WO_SDK.ctrl_mode = 0x00; //0x00: absolute angle and throttle control
+  WO_SDK.ctrl_mode = 0x02; // attitude and throttle control
+  WO_SDK.disable_motor_onoff_by_stick = 0;
 
   sdkLoops++;
 
@@ -248,8 +283,7 @@ void SDK_mainloop(void)
 
   // decide which position/state input we take for position control
   // SSDK operates in NED --> convert from ENU
-  switch (config.mode_state_estimation)
-  {
+  switch(hli_config.mode_state_estimation){
     case HLI_MODE_STATE_ESTIMATION_HL_SSDK:
       extPositionValid = 1;
       extPosition.bitfield = 0;
@@ -288,10 +322,29 @@ void SDK_mainloop(void)
       break;
     case HLI_MODE_STATE_ESTIMATION_HL_EKF:
       DEKF_step(&dekf, timestamp);
+      if(DEKF_getInitializeEvent(&dekf) == 1)
+        ssdk_reset_state = 1;
+
       extPositionValid = 1;
       break;
     default:
       extPositionValid = 0;
+  }
+
+  // dekf initialize state machine
+  // sets the acc/height/gps switch to 0 for 10 loops so that refmodel gets reset to the new state
+  if (ssdk_reset_state >= 1 && ssdk_reset_state < 10)
+  {
+    RO_RC_Data.channel[0] = 2048;
+    RO_RC_Data.channel[1] = 2048;
+    RO_RC_Data.channel[2] = 2048;
+    RO_RC_Data.channel[3] = 2048;
+    RO_RC_Data.channel[5] = 0;
+    ssdk_reset_state++;
+  }
+  else
+  {
+    ssdk_reset_state = 0;
   }
 
   // execute ssdk - only executed if ssdk parameters are available
@@ -308,17 +361,20 @@ void SDK_mainloop(void)
   { // motors are either stopped or running --> normal operation
 
     // commands are always written to LL by the Matlab controller, decide if we need to overwrite them
-    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && config.mode_position_control
-        == HLI_MODE_POSCTRL_HL)
+    if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && hli_config.mode_position_control == HLI_MODE_POSCTRL_HL)
     {
-      WO_CTRL_Input.ctrl = config.position_control_axis_enable;
+      WO_CTRL_Input.ctrl = hli_config.position_control_axis_enable;
       WO_SDK.ctrl_enabled = 1;
+      // limit yaw rate:
+      if(WO_CTRL_Input.yaw > 1000)
+        WO_CTRL_Input.yaw = 1000;
+      else if(WO_CTRL_Input.yaw < -1000)
+        WO_CTRL_Input.yaw = -1000;
     }
 
-    else if (cmdLLValid > 0 && (config.mode_position_control == HLI_MODE_POSCTRL_LL || config.mode_position_control
-        == HLI_MODE_POSCTRL_OFF))
+    else if (cmdLLValid > 0 && (hli_config.mode_position_control == HLI_MODE_POSCTRL_LL || hli_config.mode_position_control == HLI_MODE_POSCTRL_OFF))
     {
-      writeCommand(cmdLL.x, cmdLL.y, cmdLL.yaw, cmdLL.z, config.position_control_axis_enable, 1);
+      writeCommand(cmdLL.x, -cmdLL.y, -cmdLL.yaw, cmdLL.z, hli_config.position_control_axis_enable, 1);
     }
     else
     {
@@ -396,7 +452,7 @@ void SDK_mainloop(void)
   if ((sdkLoops + 20) % 500 == 0)
   {
     sendStatus();
-    writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_STATUS, (unsigned char*)&ssdk_status, sizeof(ssdk_status));
+//    writePacket2Ringbuffer(HLI_PACKET_ID_SSDK_STATUS, (unsigned char*)&ssdk_status, sizeof(ssdk_status));
   }
 
   if (checkTxPeriod(subscription.ssdk_debug))
@@ -410,6 +466,13 @@ void SDK_mainloop(void)
 //    sendEkfState();
     DEKF_sendState(&dekf, timestamp);
   }
+
+  if (checkTxPeriod(subscription.mag))
+  {
+    sendMagData();
+  }
+
+//
 
   UART_send_ringbuffer();
 
@@ -452,14 +515,15 @@ inline void sendImuData(void)
 
   // TODO: smoothing of data to make Nyquist happy ;-)
   // acceleration, angular velocities, attitude, height, dheight following the ENU convention (x front, y left, z up)
-  imuData.acc_x = -LL_1khz_attitude_data.acc_x;
+  // LL firmware 2012 is NED now
+  imuData.acc_x = LL_1khz_attitude_data.acc_x;
   imuData.acc_y = -LL_1khz_attitude_data.acc_y;
   imuData.acc_z = -LL_1khz_attitude_data.acc_z;
-  imuData.ang_vel_roll = -LL_1khz_attitude_data.angvel_roll;
-  imuData.ang_vel_pitch = LL_1khz_attitude_data.angvel_pitch;
+  imuData.ang_vel_roll = LL_1khz_attitude_data.angvel_roll;
+  imuData.ang_vel_pitch = -LL_1khz_attitude_data.angvel_pitch;
   imuData.ang_vel_yaw = -LL_1khz_attitude_data.angvel_yaw;
-  imuData.ang_roll = -LL_1khz_attitude_data.angle_roll;
-  imuData.ang_pitch = LL_1khz_attitude_data.angle_pitch;
+  imuData.ang_roll = LL_1khz_attitude_data.angle_roll;
+  imuData.ang_pitch = -LL_1khz_attitude_data.angle_pitch;
   imuData.ang_yaw = 36000 - LL_1khz_attitude_data.angle_yaw;
   imuData.differential_height = LL_1khz_attitude_data.dheight;
   imuData.height = LL_1khz_attitude_data.height;
@@ -477,6 +541,7 @@ inline void sendGpsData(void)
   gpsData.longitude = GPS_Data.longitude;
   gpsData.heading = LL_1khz_attitude_data.angle_yaw;
   gpsData.height = GPS_Data.height;
+  gpsData.pressure_height = LL_1khz_attitude_data.height;
   gpsData.speedX = GPS_Data.speed_x;
   gpsData.speedY = GPS_Data.speed_y;
   gpsData.horizontalAccuracy = GPS_Data.horizontal_accuracy;
@@ -495,7 +560,7 @@ inline void sendStatus(void)
   statusData.battery_voltage = LL_1khz_attitude_data.battery_voltage1;
   statusData.cpu_load = cpuLoad;
   statusData.flight_mode = LL_1khz_attitude_data.flightMode;
-  statusData.flight_time = LL_1khz_attitude_data.flight_time;
+  statusData.flight_time = HL_Status.flight_time;
 
   if (motor_state == 0 || motor_state == 1)
     statusData.motors = motor_state;
@@ -507,8 +572,8 @@ inline void sendStatus(void)
 //  statusData.debug1 = uart0_min_rx_buffer;
 //  statusData.debug2 = uart0_min_tx_buffer;
 
-  statusData.state_estimation = config.mode_state_estimation;
-  statusData.position_control = config.mode_position_control;
+  statusData.state_estimation = hli_config.mode_state_estimation;
+  statusData.position_control = hli_config.mode_position_control;
 
   statusData.rx_packets = UART_rxPacketCount;
   statusData.rx_packets_good = UART_rxGoodPacketCount;
@@ -527,6 +592,16 @@ inline void sendRcData(void)
   writePacket2Ringbuffer(HLI_PACKET_ID_RC, (unsigned char*)&rcData, sizeof(rcData));
 }
 
+inline void sendMagData(void)
+{
+  mag_data.timestamp = timestamp;
+  mag_data.x = LL_1khz_attitude_data.mag_x;
+  mag_data.y = LL_1khz_attitude_data.mag_y;
+  mag_data.z = LL_1khz_attitude_data.mag_z;
+
+  writePacket2Ringbuffer(HLI_PACKET_ID_MAG, (unsigned char*)&mag_data, sizeof(mag_data));
+}
+
 inline void synchronizeTime()
 {
 
@@ -536,7 +611,7 @@ inline void synchronizeTime()
     timeOffset = (900 * timeOffset + 100 * (timeSync.ts1 * 2 - timeSync.tc1 - timestamp) / 2) / 1000;
     statusData.timesync_offset = timeOffset;
 
-    if (timeOffset > 1e7 || timeOffset < -1e7)
+    if (timeOffset > 1e5 || timeOffset < -1e5)
     {
       timestamp = timeSync.ts1;
       timeOffset = 0;
@@ -548,24 +623,24 @@ inline void synchronizeTime()
 
     if (timeOffset > 0)
     {
-      time_step = 1000 / timeOffset;
-      time_correction = 1;
+      time_step = 2000 / timeOffset;
+      time_correction = 2;
     }
     else if (timeOffset < 0)
     {
-      time_step = -1000 / timeOffset;
-      time_correction = -1;
+      time_step = -2000 / timeOffset;
+      time_correction = -2;
     }
     else
     {
-      time_step = 1000;
+      time_step = 2000;
       time_correction = 0;
     }
 
     packetTimeSync->updated = 0;
   }
 
-  // correct timestamp every step sdkloops by one us
+  // correct timestamp every time_step sdkloops by time_correction us
   if (sdkLoops % time_step == 0)
   {
     timestamp += time_correction;

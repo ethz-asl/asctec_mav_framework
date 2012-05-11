@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2011, Markus Achtelik, ASL, ETH Zurich, Switzerland
+ Copyright (c) 2012, Markus Achtelik, ASL, ETH Zurich, Switzerland
  You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
 
  All rights reserved.
@@ -29,61 +29,16 @@
 
  */
 
-#ifndef __DEKF_H__
-#define __DEKF_H__
 
-#include <math.h>
-#include <HL_interface.h>
-#include <ekf/rtwtypes.h>
-#include "uart.h"
+#include "gps_conversion.h"
 
-#define DEKF_CORRECTION_SMOOTING_LENGTH 100
-#define DEKF_WATCHDOG_TIMEOUT 10  // timeout in [s]
+int main(int argc, char** argv){
 
-typedef struct
-{
-  real32_T current_state[HLI_EKF_STATE_SIZE];
-  real32_T last_state[HLI_EKF_STATE_SIZE];
-  real32_T acc[3];
-  real32_T ang_vel[3];
-  real32_T dt;
-  real32_T q_tmp[4];
-  HLI_EKF_STATE state_out;
-  HLI_EKF_STATE state_in;
-  PacketInfo * packet_info;
-  uint64_t last_time;
-  HLI_EXT_POSITION * pos_ctrl_input;
-  real32_T ctrl_correction[6];
-  real32_T ctrl_correction_step[6];
-  int ctrl_correction_count;
-  int propagate_state;
-  unsigned int watchdog;
-  char initialize_event;
-} DekfContext;
+  ros::init(argc, argv, "gps_conversion");
 
-void DEKF_init(DekfContext * self, HLI_EXT_POSITION * pos_ctrl_input);
+  asctec_hl_gps::GpsConversion gf;
 
-void DEKF_sendState(DekfContext * self, int64_t  timestamp);
+  ros::spin();
 
-void DEKF_step(DekfContext * self, int64_t timestamp);
-
-char DEKF_getInitializeEvent(DekfContext * self);
-
-inline void initState(DekfContext * self);
-
-inline void correctState(DekfContext * self);
-
-inline void writeControllerOutput(DekfContext * self);
-
-inline real32_T yawFromQuaternion(const real32_T q[4]);
-inline void quaternionMultiplication(const real32_T q1[4], const real32_T q2[4], real32_T q[4]);
-
-/// convert float to int with correct rounding
-inline int float2Int(float x);
-
-/// convert float to short with correct rounding
-inline short float2Short(float x);
-
-
-
-#endif
+  return 0;
+}

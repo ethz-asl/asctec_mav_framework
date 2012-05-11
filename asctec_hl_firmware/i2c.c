@@ -6,6 +6,7 @@
  *
  *   History
  *   2005.10.01  ver 1.00    Prelimnary version, first Release
+ *   Modifications from Ascending Technologies GmbH
  *
 *****************************************************************************/
 #include "LPC214x.h"                        /* LPC21xx definitions */
