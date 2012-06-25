@@ -167,7 +167,7 @@ void SSDKInterface::cbSSDKConfig(asctec_hl_interface::SSDKConfig & config, uint3
 }
 
 
-void SSDKInterface::cbState(const asctec_hl_comm::mav_stateConstPtr & msg)
+void SSDKInterface::cbState(const sensor_fusion_comm::ExtStatePtr & msg)
 {
   // TODO: untested, use that with care !!!
 

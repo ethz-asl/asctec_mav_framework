@@ -31,13 +31,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ekf_interface.h"
 #include <tf/tf.h>
-//#include <asctec_hl_comm/mav_ekf.h>
 #include "helper.h"
 
 EKFInterface::EKFInterface(ros::NodeHandle & nh, CommPtr & comm) :
   nh_(nh), pnh_("~"), comm_(comm)
 {
-  state_pub_ = nh.advertise<sensor_fusion_core::ext_ekf> ("ekf_state_out", 1);
+  state_pub_ = nh.advertise<sensor_fusion_comm::ExtEkf> ("ekf_state_out", 1);
   state_sub_ = nh.subscribe("ekf_state_in", 1, &EKFInterface::stateCallback, this);
 
   comm_->registerCallback(HLI_PACKET_ID_EKF_STATE, &EKFInterface::processEkfData, this);
@@ -49,7 +48,7 @@ void EKFInterface::processEkfData(uint8_t * buf, uint32_t bufLength)
   if (state_pub_.getNumSubscribers() > 0)
   {
     HLI_EKF_STATE * state = (HLI_EKF_STATE*)buf;
-    sensor_fusion_core::ext_ekfPtr msg(new sensor_fusion_core::ext_ekf);
+    sensor_fusion_comm::ExtEkfPtr msg(new sensor_fusion_comm::ExtEkf);
 
     msg->header.stamp = ros::Time(state->timestamp * 1.0e-6);
     msg->header.seq = seq;
@@ -62,7 +61,7 @@ void EKFInterface::processEkfData(uint8_t * buf, uint32_t bufLength)
     msg->angular_velocity.y = helper::asctecOmegaToSI(state->ang_vel_pitch);
     msg->angular_velocity.z = helper::asctecOmegaToSI(state->ang_vel_yaw);
 
-    msg->flag = sensor_fusion_core::ext_ekf::current_state;
+    msg->flag = sensor_fusion_comm::ExtEkf::current_state;
 
     msg->state.resize(HLI_EKF_STATE_SIZE);
 
@@ -77,19 +76,19 @@ void EKFInterface::processEkfData(uint8_t * buf, uint32_t bufLength)
   seq++;
 }
 
-void EKFInterface::stateCallback(const sensor_fusion_core::ext_ekfConstPtr & msg)
+void EKFInterface::stateCallback(const sensor_fusion_comm::ExtEkfConstPtr & msg)
 {
   ekf_state_msg_.timestamp = static_cast<uint64_t> (msg->header.stamp.toSec() * 1.0e6);
 
   switch (msg->flag)
   {
-    case sensor_fusion_core::ext_ekf::current_state:
+    case sensor_fusion_comm::ExtEkf::current_state:
       ekf_state_msg_.flag = HLI_EKF_STATE_CURRENT_STATE;
       break;
-    case sensor_fusion_core::ext_ekf::initialization:
+    case sensor_fusion_comm::ExtEkf::initialization:
       ekf_state_msg_.flag = HLI_EKF_STATE_INITIALIZATION;
       break;
-    case sensor_fusion_core::ext_ekf::state_correction:
+    case sensor_fusion_comm::ExtEkf::state_correction:
       ekf_state_msg_.flag = HLI_EKF_STATE_STATE_CORRECTION;
       break;
     default:
