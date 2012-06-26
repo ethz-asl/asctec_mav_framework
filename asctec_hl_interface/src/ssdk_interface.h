@@ -40,7 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // message includes
 #include <asctec_hl_comm/DoubleArrayStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <asctec_hl_comm/mav_state.h>
+#include <sensor_fusion_comm/ExtState.h>
 
 #include "comm.h"
 
@@ -87,7 +87,7 @@ private:
   void cbPose(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg);
 
   /// this callback sends the full state (position, velocity) to the helicopter and bypasses the Luenberger Observer on the HLP
-  void cbState(const asctec_hl_comm::mav_stateConstPtr & msg);
+  void cbState(const sensor_fusion_comm::ExtStatePtr & msg);
   void sendPoseToAP(const double & x, const double & y, const double & z, const double & yaw,
                     const unsigned char & qual);
 
