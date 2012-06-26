@@ -143,7 +143,7 @@ int	main (void) {
 
 		HL_Status.battery_voltage_1=vbat1;
         mainloop_cnt++;
-		if(!(mainloop_cnt%10)) buzzer_handler(HL_Status.battery_voltage_1);
+		if(!(mainloop_cnt%10)) buzzer_handler(HL_Status.battery_voltage_1, hli_config.battery_warning_voltage);
 
 	    if(mainloop_trigger) mainloop_trigger--;
         mainloop();

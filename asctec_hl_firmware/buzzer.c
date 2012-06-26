@@ -30,7 +30,8 @@
 #define BUZZ_MAG_WARNING_TIMEOUT 500 //mag warning for 5 seconds only
 #define BUZZ_NR_OF_WARNINGS		9 //total number of different buzzer signals (see BU_ defines above)
 
-void buzzer_handler(unsigned int vbat)	//needs to be triggered at 100 Hz
+
+void buzzer_handler(int battery_voltage, int warning_voltage)	//needs to be triggered at 100 Hz
 {
 	unsigned int buz_active=0;
 	static unsigned short error_cnt_mag_fs;
@@ -47,9 +48,8 @@ void buzzer_handler(unsigned int vbat)	//needs to be triggered at 100 Hz
 
 	//battery warning
 	if(++bat_cnt==100) bat_cnt=0;
-	if(vbat<10001) vbat=10001;
 
-	if(vbat<BATTERY_WARNING_VOLTAGE)	//decide if it's really an empty battery
+	if(battery_voltage<warning_voltage)	//decide if it's really an empty battery
 	{
 		if(bat_warning<ControllerCyclesPerSecond/5) bat_warning++;
 		else bat_warning_enabled=1;
@@ -65,7 +65,7 @@ void buzzer_handler(unsigned int vbat)	//needs to be triggered at 100 Hz
 	}
 	if(bat_warning_enabled)
 	{
-		if(bat_cnt>((vbat-10000)/BAT_DIV)) buz_active|=BU_BATTERY; //Beeper on
+		if(bat_cnt > ((1000 - warning_voltage + battery_voltage))/10) buz_active|=BU_BATTERY; //Beeper on
 		else buz_active&=~BU_BATTERY; //Beeper off
 		buz_priority|=BU_BATTERY;
 	}
