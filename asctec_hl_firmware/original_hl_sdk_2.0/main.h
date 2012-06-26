@@ -31,7 +31,6 @@ DAMAGE.
 
 extern void mainloop(void);
 extern void timer0ISR(void);
-extern void timer1ISR(void);
 
 
 volatile unsigned int GPS_timeout;
@@ -91,7 +90,7 @@ struct IMU_CALCDATA {
     int angle_roll;
     int angle_yaw;
 
-//angular velocities, 16 bit values, bias free, 1 LSB = 0.0154 ï¿½/s (=> 64.8 = 1 ï¿½/s)
+//angular velocities, 16 bit values, bias free, 1 LSB = 0.0154 °/s (=> 64.8 = 1 °/s)
     int angvel_nick;
     int angvel_roll;
     int angvel_yaw;

@@ -4,7 +4,7 @@
 # by Martin Thomas, Kaiserslautern, Germany 
 # <eversmith@heizung-thomas.de>
 #
-# based on the WinAVR makefile written by Eric B. Weddington, JÃ¶rg Wunsch, et al.
+# based on the WinAVR makefile written by Eric B. Weddington, Jörg Wunsch, et al.
 # Released to the Public Domain
 # Please read the make user manual!
 #
@@ -71,17 +71,6 @@ SRCARM = LL_HL_comm.c
 SRCARM += mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
-SRCARM += dekf.c
-SRCARM += uart.c
-
-
-SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_initialize.c
-SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation_terminate.c
-SRCARM += d_ekf/d_ekf_src/ekf/autogen_ekf_propagation.c
-SRCARM += d_ekf/d_ekf_src/ekf/rt_nonfinite.c
-SRCARM += d_ekf/d_ekf_src/ekf/rt_pow32_snf.c
-SRCARM += d_ekf/d_ekf_src/ekf/rtGetInf.c
-SRCARM += d_ekf/d_ekf_src/ekf/rtGetNaN.c
 SRCARM += buzzer.c
 
 #Sources with interrupt routines in them
@@ -89,11 +78,10 @@ SRCARMINT = $(TARGET).c
 SRCARMINT += hardware.c
 SRCARMINT += LPC2k_ee.c
 SRCARMINT += system.c
-SRCARMINT += uart1.c
+SRCARMINT += uart.c
 SRCARMINT += syscalls.c
 SRCARMINT += i2c.c
 SRCARMINT += Common_WinARM/src/irq.c
-SRCARMINT += Common_WinARM/src/interrupt_utils.c
 SRCARMINT += adc.c
 SRCARMINT += ssp.c
 SRCARMINT += pelican_ptu.c
@@ -123,13 +111,13 @@ ASRCARM += Common_WinARM/src/swi_handler.S
 
 ## Output format. (can be ihex or binary)
 ## (binary i.e. for openocd and SAM-BA, hex i.e. for lpc21isp and uVision)
-FORMATHEX = ihex
+#FORMAT = ihex
 FORMAT = binary
 
 # Optimization level, can be [0, 1, 2, 3, s]. 
 # 0 = turn off optimization. s = optimize for size.
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
-OPT = 3
+OPT = 2
 OPTINT = 0
 #OPT = 0
 
@@ -147,12 +135,12 @@ DEBUG = dwarf-2
 
 # List any extra directories to look for include files here.
 #     Each directory must be seperated by a space.
-EXTRAINCDIRS = Common_WinARM/inc ssdk/include ../asctec_hl_comm/include/asctec_hl_comm d_ekf/d_ekf_src
+EXTRAINCDIRS = Common_WinARM/inc
 
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
 #EXTRA_LIBDIRS = ../arm7_efsl_0_2_4
-EXTRA_LIBDIRS = ./ ssdk/lib
+EXTRA_LIBDIRS = ./
 
 
 # Compiler flag to set the C Standard level.
@@ -194,7 +182,6 @@ CFLAGS += -O$(OPT)
 CFLAGS += -Wall -Wcast-align -Wimplicit 
 CFLAGS += -Wpointer-arith -Wswitch
 CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
-CFLAGS += -Winline
 CFLAGS += -Wa,-adhlns=$(subst $(suffix $<),.lst,$<) 
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 
@@ -205,7 +192,6 @@ INTCFLAGS += -O$(OPTINT)
 INTCFLAGS += -Wall -Wcast-align -Wimplicit 
 INTCFLAGS += -Wpointer-arith -Wswitch
 INTCFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
-INTCFLAGS += -Winline
 INTCFLAGS += -Wa,-adhlns=$(subst $(suffix $<),.lst,$<) 
 INTCFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
 
@@ -239,7 +225,7 @@ ASFLAGS = $(ADEFS) -Wa,-adhlns=$(<:.S=.lst),-g$(DEBUG)
 #    To add libxyz.a, libabc.a and libefsl.a: 
 #    EXTRA_LIBS = xyz abc efsl
 #EXTRA_LIBS = efsl
-EXTRA_LIBS = ssdk declination ublox
+EXTRA_LIBS =
 
 #Support for newlibc-lpc (file: libnewlibc-lpc.a)
 #NEWLIBLPC = -lnewlib-lpc
@@ -255,19 +241,17 @@ MATH_LIB = -lm
 #    --cref:    add cross reference to  map file
 LDFLAGS = -nostartfiles -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += -lc
-LDFLAGS += -lc -lgcc
+LDFLAGS += -lc -lgcc -ldeclination -lublox
 LDFLAGS += $(NEWLIBLPC) $(MATH_LIB)
 LDFLAGS += $(CPLUSPLUS_LIB)
 LDFLAGS += $(patsubst %,-L%,$(EXTRA_LIBDIRS))
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
-LDFLAGS += $(MATH_LIB)
 
 # Set Linker-Script Depending On Selected Memory and Controller
 ifeq ($(RUN_MODE),RAM_RUN)
 LDFLAGS +=-TCommon_WinARM/$(SUBMDL)-RAM.ld
 else 
-LINKSCRIPT =-TCommon_WinARM/$(SUBMDL)-ROM.ld
-LINKSCRIPTBL =-TCommon_WinARM/$(SUBMDL)bl-ROM.ld
+LDFLAGS +=-TCommon_WinARM/$(SUBMDL)-ROM.ld
 endif
 
 
@@ -362,12 +346,8 @@ hex: $(TARGET).hex
 IMGEXT=hex
 else 
 ifeq ($(FORMAT),binary)
-build: elf bin hex lss 
+build: elf bin lss sym
 bin: $(TARGET).bin
-hex: $(TARGET).hex
-elb: $(TARGET).elb
-hbl: $(TARGET).hbl
-atp: $(TARGET).atp
 IMGEXT=bin
 else 
 $(error "$(MSG_FORMATERROR) $(FORMAT)")
@@ -438,7 +418,7 @@ endif
 %.hex: %.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -O $(FORMATHEX) $< $@
+	$(OBJCOPY) -O $(FORMAT) $< $@
 	
 # Create final output file (.bin) from ELF output file.
 %.bin: %.elf
@@ -468,7 +448,7 @@ endif
 %.elf:  $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJ) $(CPPOBJ) $(CPPOBJARM) $(COBJARMINT)
 	@echo
 	@echo $(MSG_LINKING) $@
-	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJARMINT) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS) $(LINKSCRIPT)
+	$(CC) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJARMINT) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 #	$(CPP) $(THUMB) $(ALL_CFLAGS) $(AOBJARM) $(AOBJ) $(COBJARM) $(COBJARMINT) $(COBJ) $(CPPOBJ) $(CPPOBJARM) --output $@ $(LDFLAGS)
 
 # Compile: create object files from C source files. ARM/Thumb

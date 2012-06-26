@@ -381,7 +381,6 @@ inline void SSP_rx_handler_HL(unsigned char SPI_rxdata)	//rx_handler @ high-leve
 				incoming_page=LL_1khz_attitude_data.system_flags&0x03;	//system flags were already received
 				if(incoming_page==1) SPI_rxptr+=26;
 				else if(incoming_page==2) SPI_rxptr+=52;
-				else if(incoming_page>2) SPI_syncstate = 0;
 			}
 			SPI_rxcount--;
 			*SPI_rxptr=SPI_rxdata;

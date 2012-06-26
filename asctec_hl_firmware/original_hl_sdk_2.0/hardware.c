@@ -26,17 +26,24 @@ DAMAGE.
 
  */
 
-#include "gpsmath.h"
-#include "sdk.h"
+#include "LPC214x.h"
+#include "main.h"
+#include "system.h"
+#include "uart.h"
+#include "hardware.h"
+#include "irq.h"
 
-struct GPS_DATA GPS_Data;
-struct GPS_DATA gps_data_temp;
 
-unsigned int gpsDataOkTrigger=0;
-
-void xy2latlon(double lat0, double lon0, double X, double Y, double *lat, double *lon)	//X: East, Y: North in m; lat0,lon0: Reference coordinates; lat,lon: current GPS measurement
+void LED(unsigned char nr, unsigned char onoff) //set or reset LED 0..3
 {
-        *lat=lat0+Y/MEAN_EARTH_DIAMETER*360./PI;
-        *lon=lon0+X/MEAN_EARTH_DIAMETER*360./PI/cos(lat0*UMR);
+  if (nr>=2)
+  	return;
+  if(onoff == OFF)
+  {
+    IOSET1 = (1<<(24+nr));
+  }
+  else
+  {
+    IOCLR1 = (1<<(24+nr));
+  }
 }
-

@@ -42,7 +42,6 @@ DAMAGE.
 #include "gpsmath.h"
 #include "adc.h"
 #include "uart.h"
-#include "uart1.h"
 #include "ssp.h"
 #include "LL_HL_comm.h"
 #include "sdk.h"
@@ -90,21 +89,10 @@ void timer0ISR(void) __irq
   	mainloop_cnt=0;
   }
 
-  if (mainloop_trigger < 10)
-    mainloop_trigger++;
-  timestamp += ControllerCyclesPerSecond;
+  if(mainloop_trigger<10) mainloop_trigger++;
 
   IDISABLE;
-  VICVectAddr = 0; // Acknowledge Interrupt
-}
-
-void timer1ISR(void) __irq
-{
-  T1IR = 0x01; //Clear the timer 1 interrupt
-  IENABLE;
-
-  IDISABLE;
-  VICVectAddr = 0; // Acknowledge Interrupt
+  VICVectAddr = 0;		// Acknowledge Interrupt
 }
 
 /**********************************************************
@@ -119,7 +107,6 @@ int	main (void) {
   LL_write_init();
   PTU_init();
   ADC0triggerSampling(1<<VOLTAGE_1); //activate ADC sampling
-  sdkInit();
 
   HL_Status.up_time=0;
 
@@ -156,6 +143,7 @@ int	main (void) {
 void mainloop(void) //mainloop is triggered at 1 kHz
 {
     static unsigned char led_cnt=0, led_state=1;
+	unsigned char t;
 
 	//blink red led if no GPS lock available
 	led_cnt++;
@@ -218,6 +206,30 @@ void mainloop(void) //mainloop is triggered at 1 kHz
 		RO_ALL_Data.GPS_height_accuracy=GPS_Data.vertical_accuracy;
 
 		gpsLEDTrigger=0;
+    }
+
+	//re-trigger UART-transmission if it was paused by modem CTS pin
+	if(trigger_transmission)
+	{
+		if(!(IOPIN0&(1<<CTS_RADIO)))
+	  	{
+	  		trigger_transmission=0;
+		    if(ringbuffer(RBREAD, &t, 1))
+		    {
+		      transmission_running=1;
+		      UARTWriteChar(t);
+		    }
+	  	}
+	}
+
+	//send attitude data packet as an example how to use HL_serial_0 (please refer to uart.c for details)
+    if(uart_cnt++==ControllerCyclesPerSecond/DataOutputsPerSecond)
+    {
+    	uart_cnt=0;
+      	if((sizeof(RO_ALL_Data))<ringbuffer(RBFREE, 0, 0))
+       	{
+       		UART_SendPacket(&RO_ALL_Data, sizeof(RO_ALL_Data), PD_RO_ALL_DATA);
+       	}
     }
 
     //handle gps data reception

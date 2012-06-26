@@ -1,97 +1,35 @@
 /*
-Copyright (c) 2011, Ascending Technologies GmbH
-Copyright (c) 2011, Markus Achtelik, ASL, ETH Zurich, Switzerland
-You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
 
+Copyright (c) 2011, Ascending Technologies GmbH
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
-* Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-* Neither the name of ETHZ-ASL nor the
-names of its contributors may be used to endorse or promote products
-derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL ETHZ-ASL BE LIABLE FOR ANY
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY
 DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
 
-*/
-
+ */
 
 #ifndef SDK_
 #define SDK_
 
 void SDK_mainloop(void);
-
-#include <HL_interface.h>
-
-#define CMD_MAX_PERIOD 100 // in [ms] ==> 10Hz
-
-/// initializes the sdk
-void sdkInit(void);
-
-/// Writes command to the LLP
-inline void writeCommand(short pitch, short roll, short yaw, short thrust, short ctrl, short enable);
-
-/// assembles IMU packet and sends it
-inline void sendImuData(void);
-
-/// assembles GPS packet and sends it
-inline void sendGpsData(void);
-
-/// assembles status packet and sends it
-inline void sendStatus(void);
-
-/// assembles rc packet and sends it
-inline void sendRcData(void);
-
-/// assembles magnetic compass data packet and sends it
-inline void sendMagData(void);
-
-/// adjusts HLP time to host PC time
-/***
- * Timestamped packets get send around every 2 s to average the transmission delay.
- * Corrects at max 500 us per second. If the time offset is large, the server (host PC)
- * time is taken directly and synchronization starts from that time.
- */
-inline void synchronizeTime(void);
-
-/// gets called every sdk loops. Currently, only checks for packets from the PC and starts autobaud in case there wwas no communication in the last 10 s
-inline void watchdog(void);
-
-/// checks if a packet has to be sent
-inline int checkTxPeriod(uint16_t period);
-
-/// perform ekf state prediction
-inline void predictEkfState(void);
-
-/// assembles ekf state packet and sends it
-inline void sendEkfState(void);
-
-/// counts ssdk loops
-extern unsigned int sdkLoops;
-
-extern HLI_EXT_POSITION extPosition;
-extern HLI_CMD_HL extPositionCmd;
-extern HLI_STATUS statusData;
-
-extern HLI_CONFIG hli_config;
-
-/// current time. Gets incremented by timer0 and gets corrected by synchronizeTime().
-extern volatile int64_t timestamp;
-
 
 //--- general commands -----------------------------------------------------------------------------------------------------------------------------------------------
 struct WO_SDK_STRUCT {
@@ -126,7 +64,7 @@ struct RO_ALL_DATA {
 	    int angle_roll;
 	    int angle_yaw;
 
-	//angular velocities, bias free, in 0.0154 ï¿½/s (=> 64.8 = 1 ï¿½/s)
+	//angular velocities, bias free, in 0.0154 °/s (=> 64.8 = 1 °/s)
 	    int angvel_pitch;
 	    int angvel_roll;
 	    int angvel_yaw;
@@ -300,7 +238,7 @@ struct WO_CTRL_INPUT {
 							bit 5: GPS position control enabled
 							*/
 
-	//max. pitch/roll (+-2047) equals 51.2ï¿½ angle if GPS position control is disabled
+	//max. pitch/roll (+-2047) equals 51.2° angle if GPS position control is disabled
 	//max. pitch/roll (+-2047) equals approx. 3 m/s if GPS position control is active (GPS signal needed!)
 
 };
@@ -328,13 +266,13 @@ struct WAYPOINT { //waypoint definition
 //chksum = 0xAAAA + wp.yaw + wp.height + wp.time + wp.X + wp.Y + wp.max_speed + wp.pos_acc + wp.properties + wp.wp_number;
   short chksum;
 
- //relative waypoint coordinates in mm 	// longitude in abs coords e.g. 113647430 (= 11.3647430ï¿½; angle in degrees * 10^7)
+ //relative waypoint coordinates in mm 	// longitude in abs coords e.g. 113647430 (= 11.3647430°; angle in degrees * 10^7)
   int X;
- //relative waypoint coordinates in mm  	// latitude in abs coords e.g. 480950480 (= 48.0950480ï¿½; angle in degrees * 10^7)
+ //relative waypoint coordinates in mm  	// latitude in abs coords e.g. 480950480 (= 48.0950480°; angle in degrees * 10^7)
   int Y;
 
 //yaw angle
-  int yaw; // 1/1000ï¿½
+  int yaw; // 1/1000°
 
 //height over 0 reference in mm
   int height;

@@ -29,7 +29,6 @@ DAMAGE.
 #include "LPC214x.h"
 #include "system.h"
 #include "uart.h"
-#include "uart1.h"
 #include "main.h"
 #include "hardware.h"
 #include "LPC2k_ee.h"
@@ -39,13 +38,10 @@ DAMAGE.
 #include "ssp.h"
 #include "adc.h"
 
-#include "sdk.h"
-
 void init(void)
 {
-  MAMCR=0x00;
-  MAMTIM=0x03;
-  MAMCR=0x02;
+  MAMCR = 0x02;  //Memory Acceleration enabled
+  MAMTIM = 0x04;
   VPBDIV = 0x01;  //0x01: peripheral frequency == cpu frequency, 0x00: per. freq. = crystal freq.
   pll_init();
   pll_feed();
@@ -55,7 +51,6 @@ void init(void)
   init_spi();
   init_spi1();
   init_timer0();
-  init_timer1();
 //  I2CInit(I2CMASTER);
   PWM_Init();
   ADCInit(ADC_CLK);
@@ -68,9 +63,6 @@ void init_interrupts(void)
 
   //Timer0 interrupt
   install_irq( TIMER0_INT, (void *) timer0ISR );
-
-  //Timer1 interrupt
-  install_irq( TIMER1_INT, (void *) timer1ISR );
 
   //UART1 interrupt
   install_irq( UART1_INT, (void *) uart1ISR );
@@ -195,19 +187,6 @@ void init_timer0(void)
   T0MR0=peripheralClockFrequency()/ControllerCyclesPerSecond; // /200 => 200 Hz Period
   T0TCR=0x1;   //Set timer0
 }
-
-//Weiss:{
-void init_timer1(void)
-{
-  T1TC=0;
-  T1TCR=0x0;    //disable timer1
-  T1MCR=0x3;    //Interrupt on match MR0 and reset counter
-  T1PR=0;
-  T1PC=0; 		//Prescale Counter = 0
-  T1MR0=processorClockFrequency(); // match every s
-  T1TCR=0x1;   //enable timer1
-}
-//}
 
 void PWM_Init( void )
 {
