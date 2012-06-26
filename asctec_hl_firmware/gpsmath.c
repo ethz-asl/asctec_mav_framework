@@ -26,8 +26,8 @@ DAMAGE.
 
  */
 
-#include "math.h"
 #include "gpsmath.h"
+#include "sdk.h"
 
 struct GPS_DATA GPS_Data;
 struct GPS_DATA gps_data_temp;

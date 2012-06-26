@@ -34,6 +34,7 @@ DAMAGE.
 #define UMR	0.017453292519943295769236907684886		//PI/180
 #define PI 3.1415926535897932384626433832795
 
+
 struct GPS_DATA
 {	
 //latitude/longitude in deg * 10^7
@@ -66,6 +67,7 @@ struct GPS_TIME
 	unsigned short week;		//[1..52]
 };
 extern struct GPS_TIME GPS_Time;
+
 
 //trigger's new gps data transmission
 extern unsigned int gpsDataOkTrigger;
