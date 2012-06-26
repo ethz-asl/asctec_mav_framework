@@ -4,7 +4,7 @@
 # by Martin Thomas, Kaiserslautern, Germany 
 # <eversmith@heizung-thomas.de>
 #
-# based on the WinAVR makefile written by Eric B. Weddington, Jörg Wunsch, et al.
+# based on the WinAVR makefile written by Eric B. Weddington, J�rg Wunsch, et al.
 # Released to the Public Domain
 # Please read the make user manual!
 #
@@ -67,8 +67,8 @@ TARGET = main
 # List C source files here which must be compiled in ARM-Mode.
 # use file-extension c for "c-only"-files
 #SRCARM = $(TARGET).c
-#SRCARM = LL_HL_comm.c
-SRCARM = mymath.c
+SRCARM = LL_HL_comm.c
+SRCARM += mymath.c
 SRCARM += gpsmath.c
 SRCARM += sdk.c
 SRCARM += dekf.c
@@ -82,13 +82,13 @@ SRCARM += d_ekf/d_ekf_src/ekf/rt_nonfinite.c
 SRCARM += d_ekf/d_ekf_src/ekf/rt_pow32_snf.c
 SRCARM += d_ekf/d_ekf_src/ekf/rtGetInf.c
 SRCARM += d_ekf/d_ekf_src/ekf/rtGetNaN.c
+SRCARM += buzzer.c
 
 #Sources with interrupt routines in them
 SRCARMINT = $(TARGET).c
 SRCARMINT += hardware.c
 SRCARMINT += LPC2k_ee.c
 SRCARMINT += system.c
-#SRCARMINT += uart.c
 SRCARMINT += uart1.c
 SRCARMINT += syscalls.c
 SRCARMINT += i2c.c
@@ -96,9 +96,7 @@ SRCARMINT += Common_WinARM/src/irq.c
 SRCARMINT += Common_WinARM/src/interrupt_utils.c
 SRCARMINT += adc.c
 SRCARMINT += ssp.c
-SRCARMINT += LL_HL_comm.c
-#SRCARMINT += ublox.c
-
+SRCARMINT += pelican_ptu.c
 
 # List C++ source files here.
 # use file-extension cpp for C++-files (use extension .cpp)
@@ -154,7 +152,7 @@ EXTRAINCDIRS = Common_WinARM/inc ssdk/include ../asctec_hl_comm/include/asctec_h
 # List any extra directories to look for library files here.
 #     Each directory must be seperated by a space.
 #EXTRA_LIBDIRS = ../arm7_efsl_0_2_4
-EXTRA_LIBDIRS = ssdk/lib
+EXTRA_LIBDIRS = ./ ssdk/lib
 
 
 # Compiler flag to set the C Standard level.
@@ -241,7 +239,7 @@ ASFLAGS = $(ADEFS) -Wa,-adhlns=$(<:.S=.lst),-g$(DEBUG)
 #    To add libxyz.a, libabc.a and libefsl.a: 
 #    EXTRA_LIBS = xyz abc efsl
 #EXTRA_LIBS = efsl
-EXTRA_LIBS = ssdk
+EXTRA_LIBS = ssdk declination ublox
 
 #Support for newlibc-lpc (file: libnewlibc-lpc.a)
 #NEWLIBLPC = -lnewlib-lpc
@@ -257,8 +255,8 @@ MATH_LIB = -lm
 #    --cref:    add cross reference to  map file
 LDFLAGS = -nostartfiles -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += -lc
+LDFLAGS += -lc -lgcc
 LDFLAGS += $(NEWLIBLPC) $(MATH_LIB)
-LDFLAGS += -lc -lgcc 
 LDFLAGS += $(CPLUSPLUS_LIB)
 LDFLAGS += $(patsubst %,-L%,$(EXTRA_LIBDIRS))
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
@@ -267,8 +265,7 @@ LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
 ifeq ($(RUN_MODE),RAM_RUN)
 LDFLAGS +=-TCommon_WinARM/$(SUBMDL)-RAM.ld
 else 
-LINKSCRIPT =-TCommon_WinARM/$(SUBMDL)-ROM.ld
-LINKSCRIPTBL =-TCommon_WinARM/$(SUBMDL)bl-ROM.ld
+LDFLAGS +=-TCommon_WinARM/$(SUBMDL)-ROM.ld
 endif
 
 
@@ -358,7 +355,7 @@ INT_ASFLAGS = -mcpu=$(MCU) $(THUMB_IW) -I. -x assembler-with-cpp $(ASFLAGS)
 all: begin gccversion sizebefore build sizeafter finished end
 
 ifeq ($(FORMAT),ihex)
-build: elf hex lss
+build: elf hex lss sym
 hex: $(TARGET).hex
 IMGEXT=hex
 else 
