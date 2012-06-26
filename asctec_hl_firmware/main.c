@@ -220,20 +220,6 @@ void mainloop(void) //mainloop is triggered at 1 kHz
 		gpsLEDTrigger=0;
     }
 
-	//re-trigger UART-transmission if it was paused by modem CTS pin
-	if(trigger_transmission)
-	{
-		if(!(IOPIN0&(1<<CTS_RADIO)))
-	  	{
-	  		trigger_transmission=0;
-		    if(ringbuffer(RBREAD, &t, 1))
-		    {
-		      transmission_running=1;
-		      UARTWriteChar(t);
-		    }
-	  	}
-	}
-
     //handle gps data reception
     uBloxReceiveEngine();
 
