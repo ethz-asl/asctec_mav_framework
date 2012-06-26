@@ -33,6 +33,7 @@ DAMAGE.
 #include "main.h"
 #include "system.h"
 #include "LL_HL_comm.h"
+#include "sdk.h"
 
 char SPIWRData[128];
 char SPIRDData[128];
@@ -45,8 +46,6 @@ volatile unsigned int SSP_trans_cnt=0;
 unsigned char data_sent_to_LL=1;
 
 unsigned char SSP_receiption_complete=1;
-unsigned char IMU_CalcData_updated=0;
-
 
 char data_sent_to_HL=1;
 
@@ -117,74 +116,6 @@ void SSPHandler (void) __irq
     VICVectAddr = 0;		/* Acknowledge Interrupt */
 }
 
-
-inline void SSPReceive(unsigned char SPI_rxdata)
-{
-	static unsigned char SPI_syncstate=0;
-	static unsigned char SPI_rxcount=0;
-	static unsigned char *SPI_rxptr;
-	static volatile unsigned char incoming_data;
-
-        //receive handler
-        if (SPI_syncstate==0)
-		{
-			if (SPI_rxdata=='>') SPI_syncstate++; else SPI_syncstate=0;
-		}
-		else if (SPI_syncstate==1)
-		{
-			if (SPI_rxdata=='*') SPI_syncstate++; else SPI_syncstate=0;
-		}
-		else if (SPI_syncstate==2)
-		{
-			if (SPI_rxdata=='>') SPI_syncstate++; else SPI_syncstate=0;
-		}
-		else if (SPI_syncstate==3)
-		{
-			if (SPI_rxdata==PD_IMUCALCDATA) //IMU CalcData
-			{
-				SPI_rxcount=sizeof(IMU_CalcData);
-				SPI_rxptr=(unsigned char *)&IMU_CalcData_tmp;
-				SPI_syncstate=4;
-				incoming_data=PD_IMUCALCDATA;
-			}
-			else if (SPI_rxdata==PD_IMURAWDATA) //IMU CalcData
-			{
-				SPI_rxcount=sizeof(IMU_RawData);
-				SPI_rxptr=(unsigned char *)&IMU_RawData;
-				SPI_syncstate=4;
-				incoming_data=PD_IMURAWDATA;
-			}
-            else SPI_syncstate=0;
-        }
-        else if (SPI_syncstate==4)
-		{
-			SPI_rxcount--;
-			*SPI_rxptr=SPI_rxdata;
-			SPI_rxptr++;
-			if (SPI_rxcount==0)
-        	{
-             	SPI_syncstate=5;
-             	if(incoming_data==PD_IMUCALCDATA)
-             	{
-             		IMU_CalcData_updated=1;
-             	}
-             	incoming_data=0;
-        	}
-		}
-		else if(SPI_syncstate==5) //check if another packet is pending
-		{
-			if(SPI_rxdata==0)
-			{
-				SPI_syncstate=0;
-			}
-			else SPI_syncstate=1;
-		}
-		else SPI_syncstate=0;
-
-		if(!SPI_syncstate) SSP_receiption_complete=1;
-		else SSP_receiption_complete=0;
-}
-
 void LL_write_init(void)
 {
 		SPIWRData[0]='>';
@@ -195,23 +126,7 @@ void LL_write_init(void)
 int LL_write(unsigned char *data, unsigned short cnt, unsigned char PD )	//write data to high-level processor
 {
 	unsigned int i;
-/*
-	if(data_sent_to_LL)
-	{
-		//SSP_trans_cnt++;
-		if(!SPIWR_num_bytes)
-		{
-			SPIWRData[3]=PD;
-			for(i=0; i<cnt; i++)
-			{
-				SPIWRData[i+4]=data[i];
-			}
-			SPIWRData[cnt+4]=0;
-			SPIWR_num_bytes=cnt+5;
 
-		}
-	}
-*/
 	if(data_sent_to_LL)
 	{
 		SPIWRData[3]=PD;
