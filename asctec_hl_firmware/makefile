@@ -4,7 +4,7 @@
 # by Martin Thomas, Kaiserslautern, Germany 
 # <eversmith@heizung-thomas.de>
 #
-# based on the WinAVR makefile written by Eric B. Weddington, J�rg Wunsch, et al.
+# based on the WinAVR makefile written by Eric B. Weddington, Jörg Wunsch, et al.
 # Released to the Public Domain
 # Please read the make user manual!
 #
@@ -260,12 +260,14 @@ LDFLAGS += $(NEWLIBLPC) $(MATH_LIB)
 LDFLAGS += $(CPLUSPLUS_LIB)
 LDFLAGS += $(patsubst %,-L%,$(EXTRA_LIBDIRS))
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
+LDFLAGS += $(MATH_LIB)
 
 # Set Linker-Script Depending On Selected Memory and Controller
 ifeq ($(RUN_MODE),RAM_RUN)
 LDFLAGS +=-TCommon_WinARM/$(SUBMDL)-RAM.ld
 else 
-LDFLAGS +=-TCommon_WinARM/$(SUBMDL)-ROM.ld
+LINKSCRIPT =-TCommon_WinARM/$(SUBMDL)-ROM.ld
+LINKSCRIPTBL =-TCommon_WinARM/$(SUBMDL)bl-ROM.ld
 endif
 
 
