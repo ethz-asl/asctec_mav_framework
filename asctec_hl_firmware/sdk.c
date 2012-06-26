@@ -45,6 +45,7 @@
 struct WO_SDK_STRUCT WO_SDK;
 struct WO_CTRL_INPUT WO_CTRL_Input;
 struct RO_RC_DATA RO_RC_Data;
+struct RO_ALL_DATA RO_ALL_Data;
 struct WO_DIRECT_MOTOR_CONTROL WO_Direct_Motor_Control;
 struct WO_DIRECT_INDIVIDUAL_MOTOR_CONTROL WO_Direct_Individual_Motor_Control;
 
