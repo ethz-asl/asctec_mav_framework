@@ -31,6 +31,7 @@ DAMAGE.
 #include "system.h"
 #include "gpsmath.h"
 #include "sdk.h"
+#include "declination.h"
 
 unsigned short SSP_ack=0;
 extern char SPIWRData[128];
@@ -67,26 +68,61 @@ void SSP_data_distribution_HL(void)
 	IMU_CalcData.angvel_roll=LL_1khz_attitude_data.angvel_roll;
 	IMU_CalcData.angvel_yaw=LL_1khz_attitude_data.angvel_yaw;
 
+	RO_ALL_Data.angle_pitch=IMU_CalcData.angle_nick;
+	RO_ALL_Data.angle_roll=IMU_CalcData.angle_roll;
+	RO_ALL_Data.angle_yaw=IMU_CalcData.angle_yaw;
+
+	RO_ALL_Data.angvel_pitch=LL_1khz_attitude_data.angvel_pitch;
+	RO_ALL_Data.angvel_roll=LL_1khz_attitude_data.angvel_roll;
+	RO_ALL_Data.angvel_yaw=LL_1khz_attitude_data.angvel_yaw;
+
 	if(!current_page)	//page 0
 	{
 		for(i=0;i<8;i++)
 		{
 			RO_RC_Data.channel[i]=LL_1khz_attitude_data.RC_data[i]*16;
+			RO_ALL_Data.channel[i]=RO_RC_Data.channel[i];
 		}
 		IMU_CalcData.acc_x_calib=LL_1khz_attitude_data.acc_x*10;
 		IMU_CalcData.acc_y_calib=LL_1khz_attitude_data.acc_y*10;
 		IMU_CalcData.acc_z_calib=LL_1khz_attitude_data.acc_z*10;
+
+		//system is initialized as soon as values differ from 0
+		if(IMU_CalcData.acc_z_calib&&(SYSTEM_initialized<10)) SYSTEM_initialized++;
+
+		RO_ALL_Data.acc_x=LL_1khz_attitude_data.acc_x*10;
+		RO_ALL_Data.acc_y=LL_1khz_attitude_data.acc_y*10;
+		RO_ALL_Data.acc_z=LL_1khz_attitude_data.acc_z*10;
+
+		RO_ALL_Data.fusion_latitude=LL_1khz_attitude_data.latitude_best_estimate;
+		RO_ALL_Data.fusion_longitude=LL_1khz_attitude_data.longitude_best_estimate;
+
 	}
 	else if(current_page==1)	//page 1
 	{
 		IMU_CalcData.height=LL_1khz_attitude_data.height;
 		IMU_CalcData.dheight=LL_1khz_attitude_data.dheight;
+
+		RO_ALL_Data.fusion_height=LL_1khz_attitude_data.height;
+		RO_ALL_Data.fusion_dheight=LL_1khz_attitude_data.dheight;
+
+		RO_ALL_Data.fusion_speed_x=LL_1khz_attitude_data.speed_x_best_estimate;
+		RO_ALL_Data.fusion_speed_y=LL_1khz_attitude_data.speed_y_best_estimate;
+		for(i=0;i<6;i++)
+		{
+			RO_ALL_Data.motor_rpm[i]=LL_1khz_attitude_data.motor_data[i];
+		}
 	}
 	else if(current_page==2)
 	{
 		IMU_CalcData.Hx=LL_1khz_attitude_data.mag_x;
 		IMU_CalcData.Hy=LL_1khz_attitude_data.mag_y;
 		IMU_CalcData.Hz=LL_1khz_attitude_data.mag_z;
+
+		RO_ALL_Data.Hx=LL_1khz_attitude_data.mag_x;
+		RO_ALL_Data.Hy=LL_1khz_attitude_data.mag_y;
+		RO_ALL_Data.Hz=LL_1khz_attitude_data.mag_z;
+
 		unsigned char slowDataUpChannelSelect=(LL_1khz_attitude_data.status2>>1)&0x7F;
 		switch (slowDataUpChannelSelect)
 		{
@@ -189,13 +225,13 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 						LL_1khz_control_input.ctrl_flags|=WP_CMD_SINGLE_WP_PART2<<8;
 
 						LL_1khz_control_input.pitch=wpToLL.time;
-						LL_1khz_control_input.roll=wpToLL.cam_angle_pitch;
+						LL_1khz_control_input.roll=0; //wpToLL.cam_angle_pitch;
 						LL_1khz_control_input.thrust=wpToLL.pos_acc;
 						LL_1khz_control_input.yaw=wpToLL.chksum;
-						LL_1khz_control_input.direct_motor_control[0]=wpToLL.cam_angle_roll;
+						LL_1khz_control_input.direct_motor_control[0]=0; //wpToLL.cam_angle_roll;
 						LL_1khz_control_input.direct_motor_control[1]=wpToLL.max_speed;
 						LL_1khz_control_input.direct_motor_control[2]=wpToLL.properties;
-						LL_1khz_control_input.direct_motor_control[3]=wpToLL.wp_number;
+						LL_1khz_control_input.direct_motor_control[3]=wpToLL.wp_activated;
 						LL_1khz_control_input.direct_motor_control[4]=0;
 						LL_1khz_control_input.direct_motor_control[5]=0;
 						LL_1khz_control_input.direct_motor_control[6]=0;
@@ -241,9 +277,26 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 		LL_1khz_control_input.numSV=GPS_Data.numSV;
 		LL_1khz_control_input.battery_voltage_1=HL_Status.battery_voltage_1;
 		LL_1khz_control_input.battery_voltage_2=HL_Status.battery_voltage_2;
-		LL_1khz_control_input.slowDataChannelDataShort=0;
-		LL_1khz_control_input.slowDataChannelDataChar=0;
-		LL_1khz_control_input.slowDataChannelSelect=0;
+		if (declinationAvailable==1)
+		{
+			declinationAvailable=2;
+			LL_1khz_control_input.slowDataChannelSelect=SDC_DECLINATION;
+			LL_1khz_control_input.slowDataChannelDataShort=estimatedDeclination;
+
+		}
+		else if (declinationAvailable==2)
+		{
+			declinationAvailable=3;
+			LL_1khz_control_input.slowDataChannelSelect=SDC_INCLINATION;
+			LL_1khz_control_input.slowDataChannelDataShort=estimatedInclination;
+
+		}
+		else
+		{
+			LL_1khz_control_input.slowDataChannelDataShort=0;
+			LL_1khz_control_input.slowDataChannelSelect=0;
+			LL_1khz_control_input.slowDataChannelDataChar=0;
+		}
 
 
 		//write data
