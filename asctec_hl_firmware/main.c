@@ -1,5 +1,7 @@
 /*
 
+AscTec AutoPilot HL SDK v2.0
+
 Copyright (c) 2011, Ascending Technologies GmbH
 All rights reserved.
 
@@ -30,7 +32,6 @@ DAMAGE.
                   Header files
  **********************************************************/
 #include "LPC214x.h"
-#include "stdio.h"
 #include "main.h"
 #include "system.h"
 #include "uart.h"
@@ -45,51 +46,48 @@ DAMAGE.
 #include "ssp.h"
 #include "LL_HL_comm.h"
 #include "sdk.h"
+#include "buzzer.h"
+#include "ublox.h"
+#include "pelican_ptu.h"
+#include "declination.h"
 
 /* *********************************************************
- Function declarations
- ********************************************************* */
+               Function declarations
+  ********************************************************* */
 
 void Initialize(void);
 void feed(void);
 void beeper(unsigned char);
 
 /**********************************************************
- Global Variables
+                  Global Variables
  **********************************************************/
 struct HL_STATUS HL_Status;
-struct IMU_RAWDATA IMU_RawData;
-volatile unsigned int int_cnt = 0, cnt = 0, mainloop_cnt = 0;
-volatile unsigned char mainloop_trigger = 0;
-volatile unsigned int GPS_timeout = 0;
-
-extern unsigned char data_requested;
-extern int ZeroDepth;
-
-volatile unsigned int trigger_cnt = 0;
-unsigned int logs_per_second = 0, total_logs_per_second = 0;
-
-unsigned char packets = 0x00;
-unsigned char packetsTemp;
-unsigned int uart_cnt;
-unsigned char DataOutputsPerSecond = 20;
-
 struct IMU_CALCDATA IMU_CalcData, IMU_CalcData_tmp;
 struct GPS_TIME GPS_Time;
-struct SYSTEM_PERMANENT_DATA SYSTEM_Permanent_Data;
+
+volatile unsigned int int_cnt=0, cnt=0, mainloop_cnt=0;
+volatile unsigned char mainloop_trigger=0;
+volatile unsigned int GPS_timeout=0;
+volatile unsigned int trigger_cnt=0;
+volatile char SYSTEM_initialized=0;
+
+unsigned int uart_cnt;
+unsigned char DataOutputsPerSecond=10;
+
 
 void timer0ISR(void) __irq
 {
-  T0IR = 0x01; //Clear the timer 0 interrupt
+  T0IR = 0x01;      //Clear the timer 0 interrupt
   IENABLE;
   trigger_cnt++;
-  if (trigger_cnt == ControllerCyclesPerSecond)
+  if(trigger_cnt==ControllerCyclesPerSecond)
   {
-    trigger_cnt = 0;
-    HL_Status.up_time++;
-    HL_Status.cpu_load = mainloop_cnt;
+  	trigger_cnt=0;
+  	HL_Status.up_time++;
+  	HL_Status.cpu_load=mainloop_cnt;
 
-    mainloop_cnt = 0;
+  	mainloop_cnt=0;
   }
 
   if (mainloop_trigger < 10)
@@ -110,187 +108,144 @@ void timer1ISR(void) __irq
 }
 
 /**********************************************************
- MAIN
- **********************************************************/
-int main(void)
-{
+                       MAIN
+**********************************************************/
+int	main (void) {
 
-  static int vbat1, vbat2;
-  int vbat;
-  static int bat_cnt = 0, bat_warning = 1000;
-  static char bat_warning_enabled = 1;
-
-#ifdef GPS_BEEP
-  static unsigned int gps_beep_cnt;
-#endif
-
-  IDISABLE;
+  static int vbat1; //battery_voltage (lowpass-filtered)
 
   init();
+  buzzer(OFF);
   LL_write_init();
-  beeper(OFF);
+  PTU_init();
+  ADC0triggerSampling(1<<VOLTAGE_1); //activate ADC sampling
 
-  HL_Status.up_time = 0;
+  HL_Status.up_time=0;
 
-  printf("\n\nProgramm is running ... \n");
-  printf("Processor Clock Frequency: %d Hz\n", processorClockFrequency());
-  printf("Peripheral Clock Frequency: %d Hz\n", peripheralClockFrequency());
+  LED(1,ON);
 
-  IENABLE;
-
-  packetsTemp = packets;
-
-  LED(1, ON);
-
-  GPS_init_status = GPS_STARTUP;
-//  GPS_init_status = GPS_NEEDS_CONFIGURATION;
-
-  sdkInit();
-
-  while (1)
+  while(1)
   {
-    if (mainloop_trigger > 0)
-    {
-
-      if (GPS_timeout < ControllerCyclesPerSecond)
-        GPS_timeout++;
-      else if (GPS_timeout == ControllerCyclesPerSecond)
+      if(mainloop_trigger)
       {
-        GPS_timeout = ControllerCyclesPerSecond + 1;
-        GPS_Data.status = 0;
-        GPS_Data.numSV = 0;
-//        if (GPS_init_status == GPS_STARTUP) //no GPS packet after startup
-//        {
-          GPS_init_status = GPS_NEEDS_CONFIGURATION;
-//        }
+     	if(GPS_timeout<ControllerCyclesPerSecond) GPS_timeout++;
+	  	else if(GPS_timeout==ControllerCyclesPerSecond)
+	  	{
+  	 		GPS_timeout=ControllerCyclesPerSecond+1;
+	  		GPS_Data.status=0;
+	  		GPS_Data.numSV=0;
+	  	}
+
+        //battery monitoring
+        ADC0getSamplingResults(0xFF,adcChannelValues);
+        vbat1=(vbat1*14+(adcChannelValues[VOLTAGE_1]*9872/579))/15;	//voltage in mV
+
+		HL_Status.battery_voltage_1=vbat1;
+        mainloop_cnt++;
+		if(!(mainloop_cnt%10)) buzzer_handler(HL_Status.battery_voltage_1);
+
+	    if(mainloop_trigger) mainloop_trigger--;
+        mainloop();
       }
-
-      mainloop_cnt++;
-      if (++bat_cnt == 100)
-        bat_cnt = 0;
-
-      //battery monitoring
-      vbat1 = (vbat1 * 29 + (ADC0Read(VOLTAGE_1) * 9872 / 579)) / 30; //voltage in mV //*9872/579
-
-      HL_Status.battery_voltage_1 = vbat1;
-      HL_Status.battery_voltage_2 = vbat2;
-
-      vbat = vbat1;
-
-      if (vbat < hli_config.battery_warning_voltage /*BATTERY_WARNING_VOLTAGE*/) //decide if it's really an empty battery
-      {
-        if (bat_warning < ControllerCyclesPerSecond * 2)
-          bat_warning++;
-        else
-          bat_warning_enabled = 1;
-      }
-      else
-      {
-        if (bat_warning > 10)
-          bat_warning -= 5;
-        else
-        {
-          bat_warning_enabled = 0;
-          beeper(OFF);//IOCLR1 = (1<<17);	//Beeper off
-        }
-      }
-      if (bat_warning_enabled)
-      {
-        if (bat_cnt > ((1000 - hli_config.battery_warning_voltage + vbat)/10))
-          beeper(ON);//IOSET1 = (1<<17);	//Beeper on
-        else
-          beeper(OFF);//IOCLR1 = (1<<17);		//Beeper off
-      }
-
-#ifdef GPS_BEEP
-      //GPS_Beep
-      if((GPS_Data.status&0xFF)!=3) //no lock
-
-      {
-        gps_beep_cnt++;
-        if(gps_beep_cnt>=1500) gps_beep_cnt=0;
-        if(gps_beep_cnt<20) beeper(ON); //IOSET1 = (1<<17);	//Beeper on
-
-        else if(gps_beep_cnt==40) beeper(OFF);// IOCLR1 = (1<<17); //Beeper off
-      }
-#endif
-
-      if (mainloop_trigger)
-        mainloop_trigger--;
-      mainloop();
-    }
   }
   return 0;
 }
 
-void beeper(unsigned char offon)
+
+void mainloop(void) //mainloop is triggered at 1 kHz
 {
-  if (offon) //beeper on
-  {
-    IOSET1 = (1 << 17);
-  }
-  else
-  {
-    IOCLR1 = (1 << 17);
-  }
-}
+    static unsigned char led_cnt=0, led_state=1;
+	unsigned char t;
 
-void mainloop(void)
-{
-  static unsigned char led_cnt = 0, led_state = 1;
+	//blink red led if no GPS lock available
+	led_cnt++;
+	if((GPS_Data.status&0xFF)==0x03)
+	{
+		LED(0,OFF);
+	}
+	else
+	{
+	    if(led_cnt==150)
+	    {
+	      LED(0,ON);
+	    }
+	    else if(led_cnt==200)
+	    {
+	      led_cnt=0;
+	      LED(0,OFF);
+	    }
+	}
 
-  led_cnt++;
+	//after first lock, determine magnetic inclination and declination
+	if (SYSTEM_initialized)
+	{
+		if ((!declinationAvailable) && (GPS_Data.horizontal_accuracy<10000) && ((GPS_Data.status&0x03)==0x03)) //make sure GPS lock is valid
+		{
+			int status;
+			estimatedDeclination=getDeclination(GPS_Data.latitude,GPS_Data.longitude,GPS_Data.height/1000,2012,&status);
+			if (estimatedDeclination<-32000) estimatedDeclination=-32000;
+			if (estimatedDeclination>32000) estimatedDeclination=32000;
+			declinationAvailable=1;
+		}
+	}
 
-  if ((GPS_Data.status & 0xFF) == 0x03)
-  {
-    LED(0, OFF);
-  }
-  else
-  {
-    if (led_cnt == 150)
+	//toggle green LED and update SDK input struct when GPS data packet is received
+    if (gpsLEDTrigger)
     {
-      LED(0, ON);
+		if(led_state)
+		{
+			led_state=0;
+			LED(1,OFF);
+		}
+		else
+		{
+			LED(1,ON);
+			led_state=1;
+		}
+
+		RO_ALL_Data.GPS_height=GPS_Data.height;
+		RO_ALL_Data.GPS_latitude=GPS_Data.latitude;
+		RO_ALL_Data.GPS_longitude=GPS_Data.longitude;
+		RO_ALL_Data.GPS_speed_x=GPS_Data.speed_x;
+		RO_ALL_Data.GPS_speed_y=GPS_Data.speed_y;
+		RO_ALL_Data.GPS_status=GPS_Data.status;
+		RO_ALL_Data.GPS_sat_num=GPS_Data.numSV;
+		RO_ALL_Data.GPS_week=GPS_Time.week;
+		RO_ALL_Data.GPS_time_of_week=GPS_Time.time_of_week;
+		RO_ALL_Data.GPS_heading=GPS_Data.heading;
+		RO_ALL_Data.GPS_position_accuracy=GPS_Data.horizontal_accuracy;
+		RO_ALL_Data.GPS_speed_accuracy=GPS_Data.speed_accuracy;
+		RO_ALL_Data.GPS_height_accuracy=GPS_Data.vertical_accuracy;
+
+		gpsLEDTrigger=0;
     }
-    else if (led_cnt == 200)
-    {
-      led_cnt = 0;
-      LED(0, OFF);
-    }
-  }
 
-  SDK_mainloop();
+	//re-trigger UART-transmission if it was paused by modem CTS pin
+	if(trigger_transmission)
+	{
+		if(!(IOPIN0&(1<<CTS_RADIO)))
+	  	{
+	  		trigger_transmission=0;
+		    if(ringbuffer(RBREAD, &t, 1))
+		    {
+		      transmission_running=1;
+		      UARTWriteChar(t);
+		    }
+	  	}
+	}
 
-  HL2LL_write_cycle(); //write data to transmit buffer for immediate transfer to LL processor
+    //handle gps data reception
+    uBloxReceiveEngine();
 
-  if (GPS_init_status == GPS_NEEDS_CONFIGURATION) //configuration SM of GPS at startup
-  {
-    GPS_configure();
-  }
+	//run SDK mainloop. Please put all your data handling / controller code in sdk.c
+	SDK_mainloop();
 
-  if (gpsDataOkTrigger)
-  {
-    if (GPS_Data.horizontal_accuracy > 12000)
-      GPS_Data.status &= ~0x03;
-    if (GPS_timeout > 50)//(GPS_Data.status&0xFF)!=0x03)
-    {
-      if (led_state)
-      {
-        led_state = 0;
-        LED(1, OFF);
-      }
-      else
-      {
-        LED(1, ON);
-        led_state = 1;
-      }
-    }
-    GPS_timeout = 0;
-    if (GPS_init_status == GPS_STARTUP)
-      GPS_init_status = GPS_IS_CONFIGURED; //gps config valid, if received correct packet
-    HL_Status.latitude = GPS_Data.latitude;
-    HL_Status.longitude = GPS_Data.longitude;
+    //write data to transmit buffer for immediate transfer to LL processor
+    HL2LL_write_cycle();
 
-  }
+    //control pan-tilt-unit ("cam option 4" @ AscTec Pelican)
+    PTU_update();
+
 
 }
 

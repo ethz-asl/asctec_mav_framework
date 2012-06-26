@@ -35,46 +35,22 @@ extern void timer1ISR(void);
 
 
 volatile unsigned int GPS_timeout;
-extern unsigned int GPS_cnt_trigger[4];
-unsigned char GPS_init_status;
+volatile char SYSTEM_initialized;
 
-#define BATTERY_WARNING_VOLTAGE 10000	//9800 mV
-#define BAT_DIV 10//(BATTERY_WARNING_VOLTAGE-9000)/100
+#define BATTERY_WARNING_VOLTAGE 10600	//10.6V
+#define BAT_DIV 6//(BATTERY_WARNING_VOLTAGE-10000)/100
 
-//#define GPS_BEEP	//Warning, if GPS has no lock
-//#define CHANNEL7_TO_5VSERVO_OUT	//CAM_Commands.desired_angle_roll is used for 5V servo output
-#define TRIGGER_SERVO_ACTIVE	1800
-#define TRIGGER_SERVO_INACTIVE	3600
-#define CAMER_OFFSET_HUMMINGBIRD	63000
+//#define GPS_BEEP	//warning if GPS has no lock
+#define ERROR_BEEP  //sensor calibration errors signaled by buzzer
+#define INIT_BEEP 	//double beep during system initialization
 
 #define ControllerCyclesPerSecond 	1000
-
-//#define INDOOR_GPS
-
-//defines for VP_CAMREMOTE (in �s)
-#define VP_SHOOT				2000
-#define VP_LENSCLOSE_SLEEP		1900
-#define VP_REFOCUS_LOCKFOCUS	1800
-#define VP_ZOOM_IN				1700
-#define VP_ZOOM_OUT				1600
-#define VP_NEXT_PROFILE			1500
-#define VP_PREVIOUS_PROFILE		1400
-#define VP_SHUTTER_SPEED_INC	1300
-#define VP_SHUTTER_SPEED_DEC	1200
-#define VP_APERTURE_INC			1100
-#define VP_APERTURE_DEC			1000
-
 
 #define OFF 0
 #define ON  1
 
 #define NORMAL 0
 
-//reconfigure GPS if needed
-#define GPS_STARTUP 			0
-#define GPS_NEEDS_CONFIGURATION	1
-#define GPS_IS_CONFIGURED		2
-#define GPS_CONFIG_ERROR		3
 
 //packet descriptors
 #define PD_IMURAWDATA       0x01
@@ -95,8 +71,19 @@ unsigned char GPS_init_status;
 #define PD_GPSDATA			0x23
 
 #define PD_CAMERACOMMANDS	0x30
+#define PD_RO_ALL_DATA		0x90
 
-#define CAM_TRIGGERED		0x04
+
+//system status defines for buzzer handling
+#define FM_COMPASS_FAILURE			0x10
+#define FM_CALIBRATION_ERROR		0x100
+#define FM_CALIBRATION_ERROR_GYROS 	0x200
+#define FM_CALIBRATION_ERROR_ACC   	0x400
+#define FM_ADC_STARTUP_ERROR        0x800
+#define FM_MAG_FIELD_STRENGTH_ERROR 0x4000
+#define FM_MAG_INCLINATION_ERROR	0x8000
+
+
 
 struct IMU_CALCDATA {
 //angles derived by integration of gyro_outputs, drift compensated by data fusion; -90000..+90000 pitch(nick) and roll, 0..360000 yaw; 1000 = 1 degree
@@ -104,12 +91,12 @@ struct IMU_CALCDATA {
     int angle_roll;
     int angle_yaw;
 
-//angular velocities, raw values [16 bit], bias free, in 0.0154 �/s (=> 64.8 = 1 �/s)
+//angular velocities, 16 bit values, bias free, 1 LSB = 0.0154 �/s (=> 64.8 = 1 �/s)
     int angvel_nick;
     int angvel_roll;
     int angvel_yaw;
 
-//acc-sensor outputs, calibrated: -10000..+10000 = -1g..+1g
+//acc-sensor outputs, calibrated: -10000..+10000 = -1g..+1g, body frame coordinate system
     short acc_x_calib;
     short acc_y_calib;
     short acc_z_calib;
@@ -153,44 +140,7 @@ struct IMU_CALCDATA {
 };
 extern struct IMU_CALCDATA IMU_CalcData, IMU_CalcData_tmp;
 
-struct IMU_RAWDATA {
-//pressure sensor 24-bit value, not scaled but bias free
-	int pressure;
 
-//16-bit gyro readings; 32768 = 2.5V
-    short gyro_x;
-	short gyro_y;
-	short gyro_z;
-
-//10-bit magnetic field sensor readings
-    short mag_x;
-	short mag_y;
-	short mag_z;
-
-//16-bit accelerometer readings
-    short acc_x;
-	short acc_y;
-    short acc_z;
-
-//16-bit temperature measurement using yaw-gyro internal sensor
-	unsigned short temp_gyro;
-
-//16-bit temperature measurement using ADC internal sensor
-	unsigned int temp_ADC;
-};
-
-extern struct IMU_RAWDATA IMU_RawData;
-
-
-struct SYSTEM_PERMANENT_DATA
-{
-	unsigned int total_uptime;
-	unsigned int total_flighttime;
-	unsigned int onoff_cycles;
-	unsigned int number_of_flights;
-	unsigned int chksum;
-};
-extern struct SYSTEM_PERMANENT_DATA SYSTEM_Permanent_Data;
 
 #endif /*MAIN_H_*/
 
