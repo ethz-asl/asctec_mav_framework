@@ -16,6 +16,7 @@
 
 volatile unsigned int ADC0Value[ADC_NUM], ADC1Value[ADC_NUM];
 volatile unsigned int ADC0IntDone = 0, ADC1IntDone = 0;
+unsigned int adcChannelValues[8];
 
 #if ADC_INTERRUPT_FLAG
 /******************************************************************************
@@ -25,12 +26,12 @@ volatile unsigned int ADC0IntDone = 0, ADC1IntDone = 0;
 **
 ** parameters:			None
 ** Returned value:		None
-** 
+**
 ******************************************************************************/
-void ADC0Handler (void) __irq 
+void ADC0Handler (void) __irq
 {
     unsigned int regVal;
-  
+
     IENABLE;			/* handles nested interrupt */
 
     regVal = AD0STAT;		/* Read ADC will clear the interrupt */
@@ -68,11 +69,11 @@ void ADC0Handler (void) __irq
 	    default:
 		break;
 	}
-	AD0CR &= 0xF8FFFFFF;	/* stop ADC now */ 
+	AD0CR &= 0xF8FFFFFF;	/* stop ADC now */
 	ADC0IntDone = 1;
-	return;	
+	return;
     }
-    
+
     if ( regVal & ADC_ADINT )
     {
 	switch ( regVal & 0xFF )	/* check DONE bit */
@@ -100,11 +101,11 @@ void ADC0Handler (void) __irq
 		break;
 	    case 0x80:
 		ADC0Value[7] = ( AD0DR7 >> 6 ) & 0x3FF;
-		break;		
+		break;
 	    default:
 		break;
 	}
-	AD0CR &= 0xF8FFFFFF;	/* stop ADC now */ 
+	AD0CR &= 0xF8FFFFFF;	/* stop ADC now */
 	ADC0IntDone = 1;
     }
 
@@ -119,12 +120,12 @@ void ADC0Handler (void) __irq
 **
 ** parameters:			None
 ** Returned value:		None
-** 
+**
 ******************************************************************************/
-void ADC1Handler (void) __irq 
+void ADC1Handler (void) __irq
 {
     unsigned int regVal;
-  
+
     IENABLE;			/* handles nested interrupt */
 
     regVal = AD1STAT;		/* Read ADC will clear the interrupt */
@@ -162,11 +163,11 @@ void ADC1Handler (void) __irq
 	    default:
 		break;
 	}
-	AD1CR &= 0xF8FFFFFF;	/* stop ADC now */ 
+	AD1CR &= 0xF8FFFFFF;	/* stop ADC now */
 	ADC1IntDone = 1;
-	return;	
+	return;
     }
-    
+
     if ( regVal & ADC_ADINT )
     {
 	switch ( regVal & 0xFF )	/* check DONE bit */
@@ -185,7 +186,7 @@ void ADC1Handler (void) __irq
 		break;
 	    case 0x10:
 		ADC1Value[4] = ( AD1DR4 >> 6 ) & 0x3FF;
-		break;		
+		break;
 	    case 0x20:
 		ADC1Value[5] = ( AD1DR5 >> 6 ) & 0x3FF;
 		break;
@@ -194,11 +195,11 @@ void ADC1Handler (void) __irq
 		break;
 	    case 0x80:
 		ADC1Value[7] = ( AD1DR7 >> 6 ) & 0x3FF;
-		break;		
+		break;
 	    default:
 		break;
 	}
-	AD1CR &= 0xF8FFFFFF;	/* stop ADC now */ 
+	AD1CR &= 0xF8FFFFFF;	/* stop ADC now */
 	ADC1IntDone = 1;
     }
 
@@ -214,32 +215,45 @@ void ADC1Handler (void) __irq
 **
 ** parameters:			ADC clock rate
 ** Returned value:		true or false
-** 
+**
 *****************************************************************************/
 unsigned int ADCInit( unsigned int ADC_Clk )
 {
-      AD0CR = ( 0x01 << 0 ) | 	// SEL=1,select channel 0, 1 to 4 on ADC0
-	( ( Fpclk / ADC_Clk - 1 ) << 8 ) |  // CLKDIV = Fpclk / 1000000 - 1 
+	   AD0CR = ( 0x01 ) | 	// SEL=1,select channel 0, 1 to 4 on ADC0
+		( ( Fpclk / ADC_Clk - 1 ) << 8 ) |  // CLKDIV = Fpclk / 1000000 - 1
+		( 1 << 16 ) | 		// BURST = 0, no BURST, software controlled
+		( 0 << 17 ) |  		// CLKS = 0, 11 clocks/10 bits
+		( 1 << 21 ) |  		// PDN = 1, normal operation
+		( 0 << 22 ) |  		// TEST1:0 = 00
+		( 0 << 24 ) |  		// START = 0 A/D conversion stops
+		( 0 << 27 );		/* EDGE = 0 (CAP/MAT singal falling,trigger A/D
+					conversion) */
+
+
+      /*
+	AD0CR = ( 0x01 << 0 ) | 	// SEL=1,select channel 0, 1 to 4 on ADC0
+	( ( Fpclk / ADC_Clk - 1 ) << 8 ) |  // CLKDIV = Fpclk / 1000000 - 1
 	( 0 << 16 ) | 		// BURST = 0, no BURST, software controlled
-	( 0 << 17 ) |  		// CLKS = 0, 11 clocks/10 bits 
-	( 1 << 21 ) |  		// PDN = 1, normal operation 
-	( 0 << 22 ) |  		// TEST1:0 = 00 
+	( 0 << 17 ) |  		// CLKS = 0, 11 clocks/10 bits
+	( 1 << 21 ) |  		// PDN = 1, normal operation
+	( 0 << 22 ) |  		// TEST1:0 = 00
 	( 0 << 24 ) |  		// START = 0 A/D conversion stops
-	( 0 << 27 );		/* EDGE = 0 (CAP/MAT singal falling,trigger A/D 
+	( 0 << 27 );		// EDGE = 0 (CAP/MAT singal falling,trigger A/D
 				conversion) */
+
     AD1CR = ( 0x01 << 0 ) | 	// SEL=1,select channel 0, 0 to 7 on ADC1
-	( ( Fpclk / ADC_Clk - 1 ) << 8 ) |  // CLKDIV = Fpclk / 1000000 - 1 
-	( 0 << 16 ) | 		// BURST = 0, no BURST, software controlled 
-	( 0 << 17 ) |  		// CLKS = 0, 11 clocks/10 bits 
-	( 1 << 21 ) |  		// PDN = 1, normal operation 
-	( 0 << 22 ) |  		// TEST1:0 = 00 
+	( ( Fpclk / ADC_Clk - 1 ) << 8 ) |  // CLKDIV = Fpclk / 1000000 - 1
+	( 0 << 16 ) | 		// BURST = 0, no BURST, software controlled
+	( 0 << 17 ) |  		// CLKS = 0, 11 clocks/10 bits
+	( 1 << 21 ) |  		// PDN = 1, normal operation
+	( 0 << 22 ) |  		// TEST1:0 = 00
 	( 0 << 24 ) |  		// START = 0 A/D conversion stops
-	( 0 << 27 );		/* EDGE = 0 (CAP/MAT singal falling,trigger A/D 
+	( 0 << 27 );		/* EDGE = 0 (CAP/MAT singal falling,trigger A/D
 				conversion) */
 
     /* If POLLING, no need to do the following */
 #if ADC_INTERRUPT_FLAG
-    AD0INTEN = 0x11E;		// Enable all interrupts 
+    AD0INTEN = 0x11E;		// Enable all interrupts
     AD1INTEN = 0x1FF;
 
     if ( install_irq( ADC0_INT, (void *)ADC0Handler ) == FALSE )
@@ -262,7 +276,7 @@ unsigned int ADCInit( unsigned int ADC_Clk )
 **
 ** parameters:			Channel number
 ** Returned value:		Value read, if interrupt driven, return channel #
-** 
+**
 *****************************************************************************/
 unsigned int ADC0Read( unsigned char channelNum )
 {
@@ -277,21 +291,21 @@ unsigned int ADC0Read( unsigned char channelNum )
 	channelNum = 0;		/* reset channel number to 0 */
     }
     AD0CR &= 0xFFFFFF00;
-    AD0CR |= (1 << 24) | (1 << channelNum);	
+    AD0CR |= (1 << 24) | (1 << channelNum);
 				/* switch channel,start A/D convert */
 #if !ADC_INTERRUPT_FLAG
     while ( timeout++<5000 )			/* wait until end of A/D convert */
     {
-	regVal = *(volatile unsigned long *)(AD0_BASE_ADDR 
+	regVal = *(volatile unsigned long *)(AD0_BASE_ADDR
 			+ ADC_OFFSET + ADC_INDEX * channelNum);
 				/* read result of A/D conversion */
 	if ( regVal & ADC_DONE )
 	{
 	    break;
 	}
-    }	
-        
-    AD0CR &= 0xF8FFFFFF;	/* stop ADC now */    
+    }
+
+    AD0CR &= 0xF8FFFFFF;	/* stop ADC now */
     if ( regVal & ADC_OVERRUN )	/* save data when it's not overrun
 				otherwise, return zero */
     {
@@ -300,7 +314,7 @@ unsigned int ADC0Read( unsigned char channelNum )
     ADC_Data = ( regVal >> 6 ) & 0x3FF;
     return ( ADC_Data );	/* return A/D conversion value */
 #else
-    return ( channelNum );	/* if it's interrupt driven, the 
+    return ( channelNum );	/* if it's interrupt driven, the
 				ADC reading is done inside the handler.
 				so, return channel number */
 #endif
@@ -313,7 +327,7 @@ unsigned int ADC0Read( unsigned char channelNum )
 **
 ** parameters:			Channel number
 ** Returned value:		Value read, if interrupt driven, return channel #
-** 
+**
 *****************************************************************************/
 unsigned int ADC1Read( unsigned char channelNum )
 {
@@ -328,32 +342,57 @@ unsigned int ADC1Read( unsigned char channelNum )
 	channelNum = 0;		/* reset channel number to 0 */
     }
     AD1CR &= 0xFFFFFF00;
-    AD1CR |= (1 << 24) | (1 << channelNum);	
+    AD1CR |= (1 << 24) | (1 << channelNum);
 				/* switch channel,start A/D convert */
 #if !ADC_INTERRUPT_FLAG
     while ( 1 )			/* wait until end of A/D convert */
     {
-	regVal = *(volatile unsigned long *)(AD1_BASE_ADDR 
+	regVal = *(volatile unsigned long *)(AD1_BASE_ADDR
 			+ ADC_OFFSET + ADC_INDEX * channelNum);
 				/* read result of A/D conversion */
 	if ( regVal & ADC_DONE )
 	{
 	    break;
 	}
-    }	
-        
+    }
+
     AD1CR &= 0xF8FFFFFF;	/* stop ADC now */
     if ( regVal & ADC_OVERRUN )	/* save data when it's not overrun
 				otherwise, return zero */
     {
 	return ( 0 );
     }
-    
+
     ADC_Data = ( regVal >> 6 ) & 0x3FF;
     return ( ADC_Data );	/* return A/D conversion value */
 #else
     return ( channelNum );
 #endif
+}
+
+void ADC0triggerSampling(unsigned char selectChannels)
+{
+	AD0CR |= (selectChannels);
+
+}
+
+void ADC0getSamplingResults(unsigned char selectChannels, unsigned int * channelValues)
+{
+	int i;
+	//get last result from all selected channels
+	for (i=0;i<8;i++)
+		if (selectChannels&(1<<i))
+		{
+		    unsigned int regVal;
+
+			regVal=*(volatile unsigned long *)(AD0_BASE_ADDR
+					+ ADC_OFFSET + ADC_INDEX * i);
+
+			if ((regVal&(ADC_OVERRUN|ADC_DONE))==0)
+					channelValues[i]=0;
+			else
+					channelValues[i]=( regVal >> 6 ) & 0x3FF;
+		}
 }
 
 /*********************************************************************************
