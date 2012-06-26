@@ -43,9 +43,9 @@ DAMAGE.
 
 void init(void)
 {
-	MAMCR=0x00;
-	MAMTIM=0x03;
-	MAMCR=0x02;
+  MAMCR=0x00;
+  MAMTIM=0x03;
+  MAMCR=0x02;
   VPBDIV = 0x01;  //0x01: peripheral frequency == cpu frequency, 0x00: per. freq. = crystal freq.
   pll_init();
   pll_feed();
