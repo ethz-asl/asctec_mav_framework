@@ -119,6 +119,7 @@ int	main (void) {
   LL_write_init();
   PTU_init();
   ADC0triggerSampling(1<<VOLTAGE_1); //activate ADC sampling
+  sdkInit();
 
   HL_Status.up_time=0;
 
@@ -155,7 +156,6 @@ int	main (void) {
 void mainloop(void) //mainloop is triggered at 1 kHz
 {
     static unsigned char led_cnt=0, led_state=1;
-	unsigned char t;
 
 	//blink red led if no GPS lock available
 	led_cnt++;
