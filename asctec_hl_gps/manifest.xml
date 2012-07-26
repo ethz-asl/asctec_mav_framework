@@ -17,8 +17,9 @@
   <depend package="diagnostic_updater"/>
   <depend package="asctec_hl_comm"/>
   <depend package="message_filters"/>
-  <depend package="eigen"/>
   <depend package="std_srvs"/>
+  
+  <rosdep name="eigen"/>
 
 </package>
 
