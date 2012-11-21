@@ -73,7 +73,6 @@ private:
   bool rx_timeout_occurred_;
   boost::thread uart_thread_[2];
 
-
   std::string port_rx_name_;
   std::string port_tx_name_;
 
@@ -88,7 +87,6 @@ private:
   boost::mutex tx_mutex_;
   const int TX_HEADER_SIZE;
 
-  bool baudrate_change_successful_;
   CommCallbackMap callbacks_;
 
   void rxReadStart(uint32_t length, uint32_t timeout = 0);

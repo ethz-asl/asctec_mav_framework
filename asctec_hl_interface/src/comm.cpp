@@ -61,11 +61,12 @@ bool Comm::connect(SerialPortPtr & serial_port, const std::string & port, uint32
     ROS_INFO_STREAM("INFO: opened serial port " << port << " with baudrate " << baudrate);
     return true;
   }
-  catch (boost::system::system_error::exception e)
+  catch (boost::system::system_error::exception &e)
   {
     ROS_ERROR_STREAM("ERROR: could not open serial port " << port << " reason: " << e.what());
     return false;
   }
+  return false;
 }
 
 bool Comm::connect(const std::string & port_rx, const std::string & port_tx, uint32_t baudrate)
@@ -144,11 +145,12 @@ bool Comm::configurePort(SerialPortPtr & serial_port, uint32_t * baudrate)
     serial_port->set_option(boost::asio::serial_port_base::character_size(8));
     return true;
   }
-  catch (boost::system::system_error::exception e)
+  catch (boost::system::system_error::exception &e)
   {
     ROS_ERROR_STREAM("configuring serial port failed: " << e.what());
     return false;
   }
+  return false;
 }
 
 void Comm::close(){

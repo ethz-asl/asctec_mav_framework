@@ -261,6 +261,7 @@ void HLInterface::processStatusData(uint8_t * buf, uint32_t bufLength)
       break;
     default:
       msg->motor_status = "";
+      break;
   }
 
   if ((data->flight_mode & 0x0F) == HLI_FLIGHTMODE_ACC)
@@ -291,6 +292,7 @@ void HLInterface::processStatusData(uint8_t * buf, uint32_t bufLength)
       break;
     default:
       msg->gps_status = "";
+      break;
   }
 
   msg->gps_num_satellites = gps_satellites_used_;
@@ -329,6 +331,7 @@ void HLInterface::processStatusData(uint8_t * buf, uint32_t bufLength)
       break;
     default:
       msg->position_control = "unknown";
+      break;
   }
 
   msg->rx_packets = comm_->getRxPackets();
