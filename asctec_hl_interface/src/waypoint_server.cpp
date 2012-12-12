@@ -110,10 +110,8 @@ private:
       dz = wp.z - current_pose_.pose.position.z;
       dist_to_wp = sqrt(dx * dx + dy * dy + dz * dz);
 
-      // TODO: implement dist_yaw
-//      dist_yaw = fabs(yaw - tf::getYaw(current_pose_.pose.orientation));
-//      dist_yaw = dist_yaw > M_PI ? dist_yaw - M_PI : dist_yaw;
-      dist_yaw = 0;
+      dist_yaw = fabs(yaw - tf::getYaw(current_pose_.pose.orientation));
+      dist_yaw = dist_yaw > M_PI ? fabs(dist_yaw - M_PI) : dist_yaw;
 
       feedback_msg.clear();
       feedback_msg.str("");
