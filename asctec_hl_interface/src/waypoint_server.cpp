@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // action server
 #include <actionlib/server/simple_action_server.h>
 #include <asctec_hl_comm/WaypointAction.h>
+#include <asctec_hl_comm/WaypointActionAbort.h>
 
 typedef actionlib::SimpleActionServer<asctec_hl_comm::WaypointAction> WaypointActionServer;
 
@@ -46,6 +47,7 @@ private:
   ros::NodeHandle nh_;
   ros::Publisher wp_pub_;
   ros::Subscriber pose_sub_;
+  ros::Subscriber abort_sub_;
 
   WaypointActionServer *wp_server_;
 
@@ -58,6 +60,18 @@ private:
   {
     boost::mutex::scoped_lock lock(current_pose_mutex_);
     current_pose_ = *pose;
+  }
+
+  /// gets called on receiving an abort message to cancel the current action
+  void abortCallback(const asctec_hl_comm::WaypointActionAbortConstPtr & msg)
+  {
+	  if(msg->cancel_id==1)
+	  {
+	        ROS_INFO("waypoint server: abort message received");
+	        // set the action state to preempted
+	        wp_server_->setPreempted();
+	  }
+
   }
 
   /// accepts new goal waypoint and sends the helicopter there
@@ -157,6 +171,7 @@ public:
   {
     wp_pub_ = nh_.advertise<asctec_hl_comm::mav_ctrl> ("fcu/control", 1);
     pose_sub_ = nh_.subscribe("fcu/current_pose", 10, &WPServer::poseCallback, this);
+    abort_sub_ = nh_.subscribe("fcu/abort_action", 10, &WPServer::abortCallback, this);
     wp_server_ = new WaypointActionServer(nh_, "fcu/waypoint", boost::bind(&WPServer::wpExecuteCB, this, _1), false);
     wp_server_->start();
   }
