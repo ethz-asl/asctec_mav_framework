@@ -85,21 +85,23 @@ void wp_listCB(const asctec_hl_comm::WPControllerCommandConstPtr & msg)
 		// parse msg for new waypointlist
 		n_tot = msg->pts.size();
 		wp_list_.clear();
+		asctec_hl_comm::WaypointGoal buff_wp;
 		for(int i=0;i<n_tot;++i)
 		{
-			wp_list_[i].header.seq=i;
-			wp_list_[i].header.stamp = msg->header.stamp;
+			buff_wp.header.seq=i;
+			buff_wp.header.stamp = msg->header.stamp;
 
-			wp_list_[i].goal_pos.x = msg->pts[i].pos.x;
-			wp_list_[i].goal_pos.y = msg->pts[i].pos.y;
-			wp_list_[i].goal_pos.z = msg->pts[i].pos.z;
-			wp_list_[i].max_speed.x = msg->pts[i].speed;
-			wp_list_[i].max_speed.y = msg->pts[i].speed;
-			wp_list_[i].max_speed.z = msg->pts[i].speed;
-			wp_list_[i].goal_yaw = goal_yaw_;
-			wp_list_[i].accuracy_orientation = yaw_acc_;
-			wp_list_[i].accuracy_position = pos_acc_;
-			wp_list_[i].timeout = timeout_;
+			buff_wp.goal_pos.x = msg->pts[i].pos.x;
+			buff_wp.goal_pos.y = msg->pts[i].pos.y;
+			buff_wp.goal_pos.z = msg->pts[i].pos.z;
+			buff_wp.max_speed.x = msg->pts[i].speed;
+			buff_wp.max_speed.y = msg->pts[i].speed;
+			buff_wp.max_speed.z = msg->pts[i].speed;
+			buff_wp.goal_yaw = goal_yaw_;
+			buff_wp.accuracy_orientation = yaw_acc_;
+			buff_wp.accuracy_position = pos_acc_;
+			buff_wp.timeout = timeout_;
+			wp_list_.push_back(buff_wp);
 		}
 		ROS_INFO_STREAM("...successfully parsed " << n_tot << " waypoints.");
 	}
