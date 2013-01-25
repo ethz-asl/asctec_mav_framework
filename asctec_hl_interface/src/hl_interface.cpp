@@ -699,7 +699,7 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
 
   ctrlHL.bitfield = 0;
 
-  if(ctrl.type == asctec_hl_comm::mav_ctrl::position_body)
+  if(msg.type == asctec_hl_comm::mav_ctrl::position_body)
     ctrlHL.bitfield |= EXT_POSITION_CMD_BODYFIXED;
 
   if (ctrl_result != NULL)
