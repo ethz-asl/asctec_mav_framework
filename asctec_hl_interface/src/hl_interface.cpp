@@ -542,7 +542,7 @@ void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_h
           ctrl_result->type = -1;
       }
     }
-  else if (ctrl.type == asctec_hl_comm::mav_ctrl::position)
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::position || ctrl.type == asctec_hl_comm::mav_ctrl::position_body)
   {
     // allow to "inherit" max velocity from parameters
     asctec_hl_comm::mav_ctrl ctrl_msg = ctrl;
@@ -698,6 +698,9 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   ctrlHL.vMaxZ = static_cast<short>(std::min<float>(config_.max_velocity_z, msg.v_max_z)*1000);
 
   ctrlHL.bitfield = 0;
+
+  if(ctrl.type == asctec_hl_comm::mav_ctrl::position_body)
+    ctrlHL.bitfield |= EXT_POSITION_CMD_BODYFIXED;
 
   if (ctrl_result != NULL)
   {
