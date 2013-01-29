@@ -40,16 +40,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <dynamic_reconfigure/server.h>
 #include <asctec_hl_interface/WaypointNodeConfig.h>
 
+#include <Eigen/Eigen>
+
 boost::mutex current_pose_mutex_;
 std::vector<asctec_hl_comm::WaypointGoal> wp_list_;
 ros::Publisher abort_wp_;
 bool allow_wp_;
 double pos_acc_, yaw_acc_, goal_yaw_, timeout_;
+geometry_msgs::Point32 current_pos_;
+double current_yaw_;
 
 void feedbackCB(const asctec_hl_comm::WaypointFeedbackConstPtr & fb)
 {
-  const geometry_msgs::Point32 & wp = fb->current_pos;
-  ROS_INFO("got feedback: %fm %fm %fm %f° ", wp.x, wp.y, wp.z, fb->current_yaw*180/M_PI);
+	current_pos_ = fb->current_pos;
+	current_yaw_ = fb->current_yaw;	// in rad
+	ROS_INFO("got feedback: %fm %fm %fm %f° ", current_pos_.x, current_pos_.y, current_pos_.z, current_yaw_*180/M_PI);
 }
 
 void activeCb()
@@ -88,12 +93,23 @@ void wp_listCB(const asctec_hl_comm::WPControllerCommandConstPtr & msg)
 		asctec_hl_comm::WaypointGoal buff_wp;
 		for(int i=0;i<n_tot;++i)
 		{
+			// transform planner waypoints to world frame
+			// ToDo: this is a hack, ideally, the planner should give us a 6DoF pose of the heli at the time it generated the waypoint list
+			// For now, just shift in position and correct for yaw, assume roll=pitch=0 since it is anyway unknown for correct transformation
+
+			Eigen::Quaternion<double> q_ic(1,0,0,0);
+			Eigen::Quaternion<double> q(cos(current_yaw_/2),0,0,sin(current_yaw_/2));
+			Eigen::Vector3d wp_C(msg->pts[i].pos.x,msg->pts[i].pos.y,msg->pts[i].pos.z);
+			Eigen::Vector3d pos(current_pos_.x,current_pos_.y,current_pos_.z);
+			Eigen::Vector3d wp_W = q*q_ic*wp_C + pos;
+
+
 			buff_wp.header.seq=i;
 			buff_wp.header.stamp = msg->header.stamp;
 
-			buff_wp.goal_pos.x = msg->pts[i].pos.x;
-			buff_wp.goal_pos.y = msg->pts[i].pos.y;
-			buff_wp.goal_pos.z = msg->pts[i].pos.z;
+			buff_wp.goal_pos.x = wp_W[0];
+			buff_wp.goal_pos.y = wp_W[1];
+			buff_wp.goal_pos.z = wp_W[2];
 			buff_wp.max_speed.x = msg->pts[i].speed;
 			buff_wp.max_speed.y = msg->pts[i].speed;
 			buff_wp.max_speed.z = msg->pts[i].speed;

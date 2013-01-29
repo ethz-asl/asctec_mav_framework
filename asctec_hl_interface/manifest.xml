@@ -19,6 +19,8 @@
   <depend package="diagnostic_updater" />
   <depend package="sensor_fusion_comm" />
   
+  <rosdep name="eigen"/>
+  
   <export>
     <rosdoc config="rosdoc.yaml" />
   </export>
