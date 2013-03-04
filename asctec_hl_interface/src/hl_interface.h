@@ -78,6 +78,7 @@ private:
   ros::Publisher gps_custom_pub_;
   ros::Publisher imu_ros_pub_; ///< publisher for sensor_msgs/Imu message
   ros::Publisher imu_pub_; ///< publisher for custom asctec_hl_comm/mav_imu message
+  ros::Publisher motors_pub_; ///< publisher for motor message
   ros::Publisher rc_pub_;
   ros::Publisher status_pub_;
   ros::Publisher mag_pub_;
