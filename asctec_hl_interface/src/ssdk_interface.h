@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // message includes
 #include <asctec_hl_comm/DoubleArrayStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <sensor_fusion_comm/ExtState.h>
 
 #include "comm.h"
@@ -70,6 +71,7 @@ private:
   ros::Publisher pose_pub_;
   ros::Subscriber pose_sub_;
   ros::Subscriber state_sub_;
+  ros::Subscriber odometry_sub_;
 
   std::string frame_id_;
 
@@ -88,6 +90,12 @@ private:
 
   /// this callback sends the full state (position, velocity) to the helicopter and bypasses the Luenberger Observer on the HLP
   void cbState(const sensor_fusion_comm::ExtStatePtr & msg);
+
+  /// this callback sends the full state (position, velocity) to the helicopter and bypasses the Luenberger Observer on the HLP
+  /** the velocity has to be expressed in the same frame as the pose currently
+   */
+  void cbOdometry(const nav_msgs::OdometryConstPtr& msg);
+
   void sendPoseToAP(const double & x, const double & y, const double & z, const double & yaw,
                     const unsigned char & qual);
 

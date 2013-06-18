@@ -46,6 +46,7 @@ SSDKInterface::SSDKInterface(ros::NodeHandle & nh, CommPtr & comm):
 
   pose_sub_ = nh_.subscribe("pose", 1, &SSDKInterface::cbPose, this);
   state_sub_ = nh_.subscribe("state", 1, &SSDKInterface::cbState, this);
+  odometry_sub_ = nh_.subscribe("odometry", 1, &SSDKInterface::cbOdometry, this);
   debug_pub_ = nh_.advertise<asctec_hl_comm::DoubleArrayStamped> ("debug", 1);
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped> ("current_pose", 1);
 
@@ -200,6 +201,46 @@ void SSDKInterface::cbState(const sensor_fusion_comm::ExtStatePtr & msg)
   comm_->sendPacket(HLI_PACKET_ID_POSITION_UPDATE, state);
 }
 
+void SSDKInterface::cbOdometry(const nav_msgs::OdometryConstPtr& msg)
+{
+  // TODO: untested, use that with care !!!
+
+  // receive state (position, yaw, velocity) and directly pass it to the HL position controller by bypassing the
+  // state observer on the HL
+
+  if(msg->child_frame_id != msg->header.frame_id){
+    ROS_WARN_STREAM_THROTTLE(1, "header.frame_id and child_frame_id don't match, not sending to HLP. got "<<msg->child_frame_id << " / "<<msg->header.frame_id);
+    return;
+  }
+
+  HLI_EXT_POSITION state;
+
+  double yaw = tf::getYaw(msg->pose.pose.orientation);
+
+  char qual = 100;
+
+  state.x = static_cast<int> (msg->pose.pose.position.x * 1000);
+  state.y = static_cast<int> (msg->pose.pose.position.y * 1000);
+  state.z = static_cast<int> (msg->pose.pose.position.z * 1000);
+  state.heading = static_cast<int> (helper::yaw2asctec(yaw));
+  state.qualX = qual;
+  state.qualY = qual;
+  state.qualZ = qual;
+
+  // TODO: rotate or not?
+  geometry_msgs::Vector3 v = msg->twist.twist.linear;
+
+  state.vX = static_cast<short> (v.x * 1000);
+  state.vY = static_cast<short> (v.y * 1000);
+  state.vZ = static_cast<short> (v.z * 1000);
+  state.qualVx = qual;
+  state.qualVy = qual;
+  state.qualVz = qual;
+
+  state.bitfield = EXT_POSITION_BYPASS_FILTER;
+
+  comm_->sendPacket(HLI_PACKET_ID_POSITION_UPDATE, state);
+}
 
 void SSDKInterface::processStatusData(uint8_t * buf, uint32_t length)
 {
