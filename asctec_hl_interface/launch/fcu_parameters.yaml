@@ -1,13 +1,13 @@
-serial_port:            /dev/ttyUSB0
-baudrate:               460800
-frame_id:               fcu
-packet_rate_imu:       100.0
-packet_rate_rc:         20.0
-packet_rate_gps:        5.0
-packet_rate_ssdk_debug: 10.0
-packet_rate_ekf_state:  0.0
-max_velocity_xy:        0.5
-max_velocity_z:         0.5
+fcu/serial_port:            /dev/ttyUSB0
+fcu/baudrate:               460800
+fcu/frame_id:               fcu
+fcu/packet_rate_imu:       100.0
+fcu/packet_rate_rc:         20.0
+fcu/packet_rate_gps:        5.0
+fcu/packet_rate_ssdk_debug: 10.0
+fcu/packet_rate_ekf_state:  0.0
+fcu/max_velocity_xy:        0.5
+fcu/max_velocity_z:         0.5
 
-state_estimation:       off
-position_control:       off
+fcu/state_estimation:       off
+fcu/position_control:       off

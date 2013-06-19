@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "helper.h"
 
 HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
-  nh_(nh), pnh_("~"), comm_(comm), gps_status_(sensor_msgs::NavSatStatus::STATUS_NO_FIX), gps_satellites_used_(0),
+  nh_(nh), pnh_("~/fcu"), comm_(comm), gps_status_(sensor_msgs::NavSatStatus::STATUS_NO_FIX), gps_satellites_used_(0),
       diag_updater_(), diag_imu_freq_(diagnostic_updater::FrequencyStatusParam(&diag_imu_freq_min_,
                                                                                &diag_imu_freq_max_, 0, 5))
 {
