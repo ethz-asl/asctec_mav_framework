@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "hl_interface.h"
 #include "helper.h"
+#include <asctec_hl_comm/MotorSpeed.h>
 
 HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   nh_(nh), pnh_("~/fcu"), comm_(comm), gps_status_(sensor_msgs::NavSatStatus::STATUS_NO_FIX), gps_satellites_used_(0),
@@ -47,6 +48,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
 
   imu_pub_ = nh_.advertise<asctec_hl_comm::mav_imu> ("imu_custom", 1);
   imu_ros_pub_ = nh_.advertise<sensor_msgs::Imu> ("imu", 1);
+  motors_pub_ = nh_.advertise<asctec_hl_comm::MotorSpeed> ("motor_speed", 1);
   gps_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("gps", 1);
   gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustom> ("gps_custom", 1);
   rc_pub_ = nh_.advertise<asctec_hl_comm::mav_rcdata> ("rcdata", 1);
@@ -147,6 +149,14 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
       imu_ros_pub_.publish(msg);
     }
   }
+
+  asctec_hl_comm::MotorSpeedPtr msg_motors (new asctec_hl_comm::MotorSpeed);
+  msg_motors->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+  msg_motors->header.seq = seq;
+  msg_motors->header.frame_id = frame_id_;
+  for(int i = 0; i<6; ++i)
+    msg_motors->motor_speed[i] = data->motors[i];
+
 
   seq++;
 }

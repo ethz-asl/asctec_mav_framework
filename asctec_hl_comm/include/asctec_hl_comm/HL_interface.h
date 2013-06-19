@@ -124,6 +124,9 @@ __attribute__((packed))
 
   /// differentiated height [mm/s]
   int16_t differential_height;
+
+  /// motor speeds
+  uint8_t motors[6];
 } HLI_IMU;
 
 /// gps packet
@@ -360,5 +363,6 @@ __attribute__((packed))
   int16_t y;
   int16_t z;
 }HLI_MAG;
+
 
 #endif

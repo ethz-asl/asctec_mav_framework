@@ -560,6 +560,9 @@ inline void sendImuData(void)
   imuData.ang_yaw = 36000 - LL_1khz_attitude_data.angle_yaw;
   imuData.differential_height = LL_1khz_attitude_data.dheight;
   imuData.height = LL_1khz_attitude_data.height;
+  for(int i=0; i<6; ++i){
+    imuData.motors[i] = RO_ALL_Data.motor_rpm[i];
+  }
 
   writePacket2Ringbuffer(HLI_PACKET_ID_IMU, (unsigned char*)&imuData, sizeof(imuData));
 }
