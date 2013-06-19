@@ -38,6 +38,7 @@
 #include "irq.h"
 #include "LPC214x.h"
 #include "hardware.h"
+#include "mymath.h"
 
 #include <ekf/autogen_ekf_propagation.h>
 #include <ekf/autogen_ekf_propagation_initialize.h>
@@ -272,6 +273,37 @@ void SDK_mainloop(void)
     extPositionCmd.vY = -extPositionCmd.vY;
     extPositionCmd.vZ = -extPositionCmd.vZ;
     extPositionCmd.vYaw = -extPositionCmd.vYaw;
+
+    if (extPositionCmd.bitfield & EXT_POSITION_CMD_BODYFIXED)
+    {
+      float s_yaw, c_yaw;
+      c_yaw = approxCos((float)extPosition.heading / 1000 / 180 * M_PI);
+      s_yaw = approxCos(M_halfPI - (float)extPosition.heading / 1000 / 180 * M_PI);
+
+      if (extPositionCmd.bitfield & EXT_POSITION_CMD_VELOCITY)
+      {
+        float vx = extPositionCmd.vX;
+        float vy = extPositionCmd.vY;
+        extPositionCmd.vX = c_yaw * vx - s_yaw * vy;
+        extPositionCmd.vY = s_yaw * vx + c_yaw * vy;
+      }
+      else
+      {
+        float x = extPositionCmd.x;
+        float y = extPositionCmd.y;
+        extPositionCmd.x = c_yaw * x - s_yaw * y + extPosition.x;
+        extPositionCmd.y = s_yaw * x + c_yaw * y + extPosition.y;
+        extPositionCmd.z += extPosition.z;
+        extPositionCmd.heading += extPosition.heading;
+
+        if(extPositionCmd.heading > 360000)
+          extPositionCmd.heading -= 360000;
+        // should not happen ...
+        else if(extPositionCmd.heading < 0)
+          extPositionCmd.heading += 360000;
+      }
+    }
+
   }
 
   // handle parameter packet
@@ -570,7 +602,7 @@ inline void sendStatus(void)
   else if (!(LL_1khz_attitude_data.status2 & 0x1))
     statusData.motors = -1;
 
-//  statusData.debug1 = uart0_min_rx_buffer;
+  statusData.debug1 = extPositionCmd.heading;//uart0_min_rx_buffer;
 //  statusData.debug2 = uart0_min_tx_buffer;
 
   statusData.state_estimation = hli_config.mode_state_estimation;

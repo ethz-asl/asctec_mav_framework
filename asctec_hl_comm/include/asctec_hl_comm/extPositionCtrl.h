@@ -102,3 +102,9 @@ struct __attribute__((packed)) EXT_POSITION_CMD
 /// sets control mode to position control
 #define EXT_POSITION_CMD_POSITION       0x0000
 
+/// sets control mode to position control
+#define EXT_POSITION_CMD_WORLDFIXED       0x0000
+
+/// sets control mode to position control
+#define EXT_POSITION_CMD_BODYFIXED       0x0010
+

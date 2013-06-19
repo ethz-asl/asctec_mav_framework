@@ -503,7 +503,7 @@ void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_h
     }
   }
 
-  else if (ctrl.type == asctec_hl_comm::mav_ctrl::velocity)
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::velocity_body)
   {
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_GPS)
     {
@@ -524,9 +524,25 @@ void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_h
       if(ctrl_result != NULL)
         ctrl_result->type = -1;
     }
-
   }
-  else if (ctrl.type == asctec_hl_comm::mav_ctrl::position)
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::velocity)
+    {
+      if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL)
+      {
+        sendVelCommandHL(ctrl, ctrl_result);
+        validCommand = true;
+      }
+      else
+      {
+        ROS_WARN_STREAM_THROTTLE(2,
+            "Higlevel or Lowlevel processor position control has not "
+            "been chosen. Set \"position_control\" parameter to "
+            "\"HighLevel\" ! sending nothing to mav !");
+        if(ctrl_result != NULL)
+          ctrl_result->type = -1;
+      }
+    }
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::position || ctrl.type == asctec_hl_comm::mav_ctrl::position_body)
   {
     // allow to "inherit" max velocity from parameters
     asctec_hl_comm::mav_ctrl ctrl_msg = ctrl;
@@ -639,6 +655,8 @@ void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   ctrlHL.heading = 0;
 
   ctrlHL.bitfield = 1;
+  if(msg.type == asctec_hl_comm::mav_ctrl::velocity_body)
+    ctrlHL.bitfield |= EXT_POSITION_CMD_BODYFIXED;
 
   if (ctrl_result != NULL)
   {
@@ -680,6 +698,9 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   ctrlHL.vMaxZ = static_cast<short>(std::min<float>(config_.max_velocity_z, msg.v_max_z)*1000);
 
   ctrlHL.bitfield = 0;
+
+  if(msg.type == asctec_hl_comm::mav_ctrl::position_body)
+    ctrlHL.bitfield |= EXT_POSITION_CMD_BODYFIXED;
 
   if (ctrl_result != NULL)
   {
