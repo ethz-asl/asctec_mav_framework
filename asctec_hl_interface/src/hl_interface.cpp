@@ -157,6 +157,7 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   for(int i = 0; i<6; ++i)
     msg_motors->motor_speed[i] = data->motors[i];
 
+  motors_pub_.publish(msg_motors);
 
   seq++;
 }
