@@ -23,6 +23,7 @@ add_message_files(
   mav_state.msg  
   mav_status.msg  
   PositionWithCovarianceStamped.msg
+  MotorSpeed.msg
 )
 
 add_service_files(
