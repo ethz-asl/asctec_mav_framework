@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(asctec_hl_comm)
+
+find_package(catkin REQUIRED COMPONENTS message_generation actionlib_msgs geometry_msgs sensor_msgs)
 
 # Set the build type.  Options are:
 #  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
@@ -9,19 +11,44 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
 #set(ROS_BUILD_TYPE RelWithDebInfo)
 
+add_message_files(
+  FILES
+  DoubleArrayStamped.msg  
+  GpsCustomCartesian.msg  
+  GpsCustom.msg  
+  mav_ctrl.msg  
+  mav_ekf.msg  
+  mav_imu.msg  
+  mav_rcdata.msg  
+  mav_state.msg  
+  mav_status.msg  
+  PositionWithCovarianceStamped.msg
+)
 
-rosbuild_find_ros_package(actionlib_msgs)
-include(${actionlib_msgs_PACKAGE_PATH}/cmake/actionbuild.cmake)
-genaction()
+add_service_files(
+  FILES
+  mav_ctrl_motors.srv
+  MavCtrlSrv.srv
+)
 
-rosbuild_init()
+add_action_files(
+  FILES
+  Waypoint.action
+)
 
+## Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES geometry_msgs std_msgs sensor_msgs actionlib_msgs
+)
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-
-rosbuild_genmsg()
-rosbuild_gensrv()
-
-
+# TODO: fill in what other packages will need to use this package
+## DEPENDS: system dependencies of this project that dependent projects also need
+## CATKIN_DEPENDS: catkin_packages dependent projects also need
+## INCLUDE_DIRS: 
+## LIBRARIES: libraries you create in this project that dependent projects also need
+catkin_package(
+    DEPENDS 
+    CATKIN_DEPENDS message_runtime actionlib_msgs geometry_msgs sensor_msgs
+    INCLUDE_DIRS include
+    LIBRARIES 
+)
