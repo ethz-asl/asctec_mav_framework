@@ -1,5 +1,20 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(asctec_hl_interface)
+
+find_package(catkin REQUIRED COMPONENTS 
+    roscpp 
+    sensor_msgs 
+    tf 
+    dynamic_reconfigure 
+    asctec_hl_comm 
+    actionlib 
+    diagnostic_updater 
+    sensor_fusion_comm
+)
+
+find_package(Boost REQUIRED COMPONENTS signals system thread)
+
+include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS})
 
 # Set the build type.  Options are:
 #  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
@@ -9,16 +24,18 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
 #set(ROS_BUILD_TYPE RelWithDebInfo)
 
-rosbuild_init()
+generate_dynamic_reconfigure_options(cfg/HLInterface.cfg cfg/SSDK.cfg)
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-
-# Generate dynamic parameters
-rosbuild_find_ros_package(dynamic_reconfigure)
-include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
-gencfg()
+## DEPENDS: system dependencies of this project that dependent projects also need
+## CATKIN_DEPENDS: catkin_packages dependent projects also need
+## INCLUDE_DIRS: 
+## LIBRARIES: libraries you create in this project that dependent projects also need
+catkin_package(
+    DEPENDS 
+    CATKIN_DEPENDS roscpp sensor_msgs tf dynamic_reconfigure asctec_hl_comm actionlib diagnostic_updater sensor_fusion_comm
+    INCLUDE_DIRS 
+    LIBRARIES 
+)
 
 set(ASCTEC_HL_INTERFACE_SRC
     src/comm.cpp
@@ -27,11 +44,16 @@ set(ASCTEC_HL_INTERFACE_SRC
     src/ekf_interface.cpp
     )
 
-rosbuild_add_boost_directories()
+add_executable(hl_node ${ASCTEC_HL_INTERFACE_SRC} src/node.cpp)
+target_link_libraries(hl_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
-rosbuild_add_executable(hl_node ${ASCTEC_HL_INTERFACE_SRC} src/node.cpp)
-rosbuild_link_boost(hl_node thread system signals)
+add_executable(ctrl_test src/ctrl_test.cpp)
+target_link_libraries(ctrl_test ${catkin_LIBRARIES})
 
-rosbuild_add_executable(ctrl_test src/ctrl_test.cpp)
-rosbuild_add_executable(waypoint_server src/waypoint_server.cpp)
-rosbuild_add_executable(waypoint_client src/waypoint_client.cpp)
+add_executable(waypoint_server src/waypoint_server.cpp)
+target_link_libraries(waypoint_server ${catkin_LIBRARIES})
+
+add_executable(waypoint_client src/waypoint_client.cpp)
+target_link_libraries(waypoint_client ${catkin_LIBRARIES})
+
+

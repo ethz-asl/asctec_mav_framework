@@ -1,0 +1,29 @@
+<package>
+  <name>asctec_hl_firmware</name>
+  <version>0.1.0</version>
+  <description>Firmware code for the Asctec Autopilot HighLevel Processor</description>
+  <maintainer email="markus.achtelik_devel@mavt.ethz.ch">Markus Achtelik</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/asctec_hl_firmware</url>
+  <url type="bugtracker">https://github.com/ethz-asl/asctec_mav_framework/issues</url>
+
+  <author>Markus Achtelik</author>
+  <author>Michael Achtelik</author>
+  <author>Stephan Weiss</author>
+  <author>Laurent Kneip</author>
+
+  <!-- Dependencies which this package needs to build itself. -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Dependencies needed to compile this package. -->
+  <build_depend>asctec_hl_comm</build_depend>
+
+  <!-- Dependencies needed after this package is compiled. -->
+  <run_depend>asctec_hl_comm</run_depend>
+
+  <export>
+
+  </export>
+</package>

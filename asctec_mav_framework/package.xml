@@ -1,0 +1,27 @@
+<package>
+  <name>asctec_mav_framework</name>
+  <version>0.1.0</version>
+  <description>Framework for data aquisition and position control to be used with the highlevel processor of Ascending Technologies helicopters</description>
+  <maintainer email="markus.achtelik_devel@mavt.ethz.ch">Maintained by Markus Achtelik</maintainer>
+
+  <license></license>
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/asctec_mav_framework</url>
+  <url type="bugtracker">https://github.com/ethz-asl/asctec_mav_framework/issues</url>
+
+  <author>Maintained by Markus Achtelik</author>
+
+  <!-- Dependencies which this package needs to build itself. -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Dependencies needed after this package is compiled. -->
+  <run_depend>asctec_hl_firmware</run_depend>
+  <run_depend>asctec_hl_comm</run_depend>
+  <run_depend>asctec_hl_interface</run_depend>
+  <run_depend>asctec_hl_gps</run_depend>
+
+  <export>
+    <metapackage/>
+  </export>
+</package>
