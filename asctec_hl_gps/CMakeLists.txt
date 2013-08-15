@@ -5,7 +5,7 @@ find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs asctec_hl_comm messag
 
 find_package(Eigen REQUIRED)
 
-include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 # CATKIN_MIGRATION: removed during catkin migration
 # include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
@@ -21,7 +21,7 @@ include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${Eigen_
 catkin_package(
     DEPENDS eigen
     CATKIN_DEPENDS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs 
-    INCLUDE_DIRS include
+    INCLUDE_DIRS
     LIBRARIES # TODO
 )
 
