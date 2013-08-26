@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS message_generation actionlib_msgs geomet
 #  Release        : w/o debug symbols, w/ optimization
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
 add_message_files(
   FILES

@@ -22,7 +22,7 @@ include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS})
 #  Release        : w/o debug symbols, w/ optimization
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
 generate_dynamic_reconfigure_options(cfg/HLInterface.cfg cfg/SSDK.cfg)
 
@@ -45,7 +45,7 @@ set(ASCTEC_HL_INTERFACE_SRC
     )
 
 add_executable(hl_node ${ASCTEC_HL_INTERFACE_SRC} src/node.cpp)
-add_dependencies(hl_node ${PROJECT_NAME}_gencfg)
+add_dependencies(hl_node ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(hl_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(ctrl_test src/ctrl_test.cpp)

@@ -7,16 +7,13 @@ find_package(Eigen REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
-# CATKIN_MIGRATION: removed during catkin migration
-# include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
-
 # Set the build type.  Options are:
 #  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
 #  Debug          : w/ debug symbols, w/o optimization
 #  Release        : w/o debug symbols, w/ optimization
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
 catkin_package(
     DEPENDS eigen
@@ -26,8 +23,7 @@ catkin_package(
 )
 
 add_executable(gps_conversion src/gps_conversion.cpp src/gps_conversion_node.cpp)
-#find_package(Boost REQUIRED COMPONENTS signals)
-#include_directories(${Boost_INCLUDE_DIRS})
+
 target_link_libraries(gps_conversion ${catkin_LIBRARIES})
 
 add_executable(set_gps_reference src/set_gps_reference.cpp)
