@@ -1,0 +1,3 @@
+bool      startCamTrigger         # starts/stops the camera trigger
+---
+bool      camTriggerRunning       # is the camera trigger running?

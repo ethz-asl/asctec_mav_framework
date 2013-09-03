@@ -54,11 +54,13 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   rc_pub_ = nh_.advertise<asctec_hl_comm::mav_rcdata> ("rcdata", 1);
   status_pub_ = nh_.advertise<asctec_hl_comm::mav_status> ("status", 1);
   mag_pub_ = nh_.advertise<geometry_msgs::Vector3Stamped> ("mag", 1);
+  cam_trigger_pub_ = nh_.advertise<asctec_hl_comm::CamTrigger> ("cam_trigger", 1);
 
   control_sub_ = nh_.subscribe("control", 1, &HLInterface::controlCmdCallback, this);
 
   motor_srv_ = nh_.advertiseService("motor_control", &HLInterface::cbMotors, this);
   crtl_srv_ = nh_.advertiseService("control", &HLInterface::cbCtrl, this);
+  cam_trigger_srv_ = nh_.advertiseService("cam_trigger", &HLInterface::cbCamTrigger, this);
 
   config_ = asctec_hl_interface::HLInterfaceConfig::__getDefault__();
 
@@ -79,6 +81,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   comm_->registerCallback(HLI_PACKET_ID_STATUS, &HLInterface::processStatusData, this);
   comm_->registerCallback(HLI_PACKET_ID_TIMESYNC, &HLInterface::processTimeSyncData, this);
   comm_->registerCallback(HLI_PACKET_ID_MAG, &HLInterface::processMagData, this);
+  comm_->registerCallback(HLI_PACKET_ID_CAM_TRIGGER, &HLInterface::processCamTriggerData, this);
 }
 
 HLInterface::~HLInterface()
@@ -275,6 +278,25 @@ void HLInterface::processStatusData(uint8_t * buf, uint32_t bufLength)
       break;
   }
 
+  switch (data->cam_trigger)
+  {
+    case -1:
+      msg->cam_trigger_status = "off";
+      break;
+    case 0:
+      msg->cam_trigger_status = "stopping";
+      break;
+    case 1:
+      msg->cam_trigger_status = "starting";
+      break;
+    case 2:
+      msg->cam_trigger_status = "running";
+      break;
+    default:
+      msg->cam_trigger_status = "";
+      break;
+  }
+
   if ((data->flight_mode & 0x0F) == HLI_FLIGHTMODE_ACC)
     msg->flight_mode_ll = "Acc";
   else if ((data->flight_mode & 0x0F) == HLI_FLIGHTMODE_HEIGHT)
@@ -390,6 +412,7 @@ void HLInterface::diagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
   stat.add("GPS # satellites", status_.gps_num_satellites);
   stat.add("Flight mode LLP", status_.flight_mode_ll);
   stat.add("Motor status", status_.motor_status);
+  stat.add("Camera trigger status", status_.cam_trigger_status);
   stat.add("Successful TX packets [%]", (float)status_.tx_packets_good/(float)status_.tx_packets*100.0);
   stat.add("Successful RX packets [%]", (float)status_.rx_packets_good/(float)status_.rx_packets*100.0);
   stat.add("Serial interface enabled", static_cast<bool>(status_.serial_interface_enabled));
@@ -428,6 +451,22 @@ void HLInterface::processMagData(uint8_t * buf, uint32_t bufLength)
 
   seq++;
   mag_pub_.publish(msg);
+}
+
+void HLInterface::processCamTriggerData(uint8_t * buf, uint32_t bufLength)
+{
+  HLI_CAM_TRIGGER* data = (HLI_CAM_TRIGGER*)buf;
+  static int seq = 0;
+  asctec_hl_comm::CamTriggerPtr msg(new asctec_hl_comm::CamTrigger);
+
+  msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+  msg->header.frame_id = frame_id_;
+  msg->header.seq = seq;
+
+  msg->frame_counter = data->frame_counter;
+
+  seq++;
+  cam_trigger_pub_.publish(msg);
 }
 
 bool HLInterface::cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req,
@@ -491,6 +530,57 @@ bool HLInterface::cbCtrl(asctec_hl_comm::MavCtrlSrv::Request & req, asctec_hl_co
 {
   sendControlCmd(req.ctrl, &resp.ctrl_result);
   return resp.ctrl_result.type != -1;
+}
+
+bool HLInterface::cbCamTrigger(asctec_hl_comm::CamTriggerSrv::Request & req, asctec_hl_comm::CamTriggerSrv::Response & resp)
+{
+  HLI_CAM_TRIGGER_ONOFF data;
+
+  if (req.startCamTrigger)
+  {
+    data.cam_trigger = 1;
+    ROS_INFO("request to start camera trigger");
+  }
+  else
+  {
+    data.cam_trigger = 0;
+    ROS_INFO("request to stop camera trigger");
+  }
+
+  // make sure packet arrives
+  bool success = false;
+  for (int i = 0; i < 5; i++)
+  {
+    success = comm_->sendPacketAck(HLI_PACKET_ID_CAM_TRIGGER_ONOFF, data, 0.5);
+    if (success)
+      break;
+  }
+
+  if(!success)
+  {
+    ROS_WARN("unable to send camera trigger on/off command");
+    resp.camTriggerRunning = status_.cam_trigger_status == "running";
+    return false;
+  }
+
+  ros::Duration d(0.1);
+  for (int i = 0; i < 10; i++)
+  {
+    if (req.startCamTrigger && status_.cam_trigger_status == "running")
+    {
+      resp.camTriggerRunning = true;
+      return true;
+    }
+    else if (!req.startCamTrigger && status_.cam_trigger_status == "off")
+    {
+      resp.camTriggerRunning = false;
+      return true;
+    }
+    d.sleep();
+  }
+
+  ROS_WARN("switching cam trigger %s timed out", req.startCamTrigger?"on":"off");
+  return false;
 }
 
 void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result)
@@ -728,6 +818,11 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   seq++;
 }
 
+void sendCamTriggerCmd(bool startCamTrigger, bool * camTriggerRunning)
+{
+
+}
+
 void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint32_t level)
 {
 
@@ -778,6 +873,8 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
 
     cfg.battery_warning_voltage = static_cast<uint16_t>(config.battery_warning * 1000); // convert to mV
 
+    cfg.trigger_rate_cam = helper::rateToPeriod(config.trigger_rate_cam);
+
     if(!comm_->sendPacketAck(HLI_PACKET_ID_CONFIG, cfg)){
       config.enable_x = config_.enable_x;
       config.enable_y = config_.enable_y;
@@ -786,6 +883,7 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
       config.position_control = config_.position_control;
       config.state_estimation = config_.state_estimation;
       config.battery_warning = config_.battery_warning;
+      config.trigger_rate_cam = config_.trigger_rate_cam;
     }
   }
 

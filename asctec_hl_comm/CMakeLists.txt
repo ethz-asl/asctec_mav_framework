@@ -13,6 +13,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 add_message_files(
   FILES
+  CamTrigger.msg
   DoubleArrayStamped.msg  
   GpsCustomCartesian.msg  
   GpsCustom.msg  
@@ -28,6 +29,7 @@ add_message_files(
 
 add_service_files(
   FILES
+  CamTriggerSrv.srv
   mav_ctrl_motors.srv
   MavCtrlSrv.srv
 )

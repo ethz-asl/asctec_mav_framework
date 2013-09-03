@@ -60,6 +60,9 @@ inline void sendRcData(void);
 /// assembles magnetic compass data packet and sends it
 inline void sendMagData(void);
 
+/// assembles cam trigger packet and sends it
+inline void sendCamTriggerData(void);
+
 /// adjusts HLP time to host PC time
 /***
  * Timestamped packets get send around every 2 s to average the transmission delay.
@@ -73,6 +76,9 @@ inline void watchdog(void);
 
 /// checks if a packet has to be sent
 inline int checkTxPeriod(uint16_t period);
+
+//// checks if a camera trigger has to be sent
+inline int checkCamTrigger(uint16_t period);
 
 /// perform ekf state prediction
 inline void predictEkfState(void);
