@@ -115,6 +115,7 @@ int	main (void) {
   static int vbat1; //battery_voltage (lowpass-filtered)
 
   init();
+  resetCamTrigger();
   buzzer(OFF);
   LL_write_init();
   PTU_init();
