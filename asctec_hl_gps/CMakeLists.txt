@@ -23,6 +23,7 @@ catkin_package(
 )
 
 add_executable(gps_conversion src/gps_conversion.cpp src/gps_conversion_node.cpp)
+add_dependencies(gps_conversion ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 target_link_libraries(gps_conversion ${catkin_LIBRARIES})
 
