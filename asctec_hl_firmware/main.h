@@ -41,7 +41,7 @@ volatile char SYSTEM_initialized;
 #define BAT_DIV 6//(BATTERY_WARNING_VOLTAGE-10000)/100
 
 //#define GPS_BEEP	//warning if GPS has no lock
-#define ERROR_BEEP  //sensor calibration errors signaled by buzzer
+//#define ERROR_BEEP  //sensor calibration errors signaled by buzzer
 #define INIT_BEEP 	//double beep during system initialization
 
 #define ControllerCyclesPerSecond 	1000

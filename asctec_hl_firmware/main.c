@@ -83,11 +83,11 @@ void timer0ISR(void) __irq
   trigger_cnt++;
   if(trigger_cnt==ControllerCyclesPerSecond)
   {
-  	trigger_cnt=0;
-  	HL_Status.up_time++;
-  	HL_Status.cpu_load=mainloop_cnt;
+    trigger_cnt=0;
+    HL_Status.up_time++;
+    HL_Status.cpu_load=mainloop_cnt;
 
-  	mainloop_cnt=0;
+    mainloop_cnt=0;
   }
 
   if (mainloop_trigger < 10)
@@ -110,8 +110,8 @@ void timer1ISR(void) __irq
 /**********************************************************
                        MAIN
 **********************************************************/
-int	main (void) {
-
+int main (void)
+{
   static int vbat1; //battery_voltage (lowpass-filtered)
 
   init();
@@ -128,27 +128,26 @@ int	main (void) {
 
   while(1)
   {
-      if(mainloop_trigger)
+    if(mainloop_trigger)
+    {
+      if(GPS_timeout<ControllerCyclesPerSecond) GPS_timeout++;
+      else if(GPS_timeout==ControllerCyclesPerSecond)
       {
-     	if(GPS_timeout<ControllerCyclesPerSecond) GPS_timeout++;
-	  	else if(GPS_timeout==ControllerCyclesPerSecond)
-	  	{
-  	 		GPS_timeout=ControllerCyclesPerSecond+1;
-	  		GPS_Data.status=0;
-	  		GPS_Data.numSV=0;
-	  	}
-
-        //battery monitoring
-        ADC0getSamplingResults(0xFF,adcChannelValues);
-        vbat1=(vbat1*14+(adcChannelValues[VOLTAGE_1]*9872/579))/15;	//voltage in mV
-
-		HL_Status.battery_voltage_1=vbat1;
-        mainloop_cnt++;
-		if(!(mainloop_cnt%10)) buzzer_handler(HL_Status.battery_voltage_1, hli_config.battery_warning_voltage);
-
-	    if(mainloop_trigger) mainloop_trigger--;
-        mainloop();
+        GPS_timeout=ControllerCyclesPerSecond+1;
+        GPS_Data.status=0;
+        GPS_Data.numSV=0;
       }
+
+      //battery monitoring
+      ADC0getSamplingResults(0xFF,adcChannelValues);
+      vbat1=(vbat1*14+(adcChannelValues[VOLTAGE_1]*9872/579))/15; //voltage in mV
+
+      HL_Status.battery_voltage_1=vbat1;
+      mainloop_cnt++;
+      if(!(mainloop_cnt%10)) buzzer_handler(HL_Status.battery_voltage_1, hli_config.battery_warning_voltage);
+      if(mainloop_trigger) mainloop_trigger--;
+      mainloop();
+    }
   }
   return 0;
 }
@@ -156,84 +155,82 @@ int	main (void) {
 
 void mainloop(void) //mainloop is triggered at 1 kHz
 {
-    static unsigned char led_cnt=0, led_state=1;
+  static unsigned char led_cnt=0, led_state=1;
 
-	//blink red led if no GPS lock available
-	led_cnt++;
-	if((GPS_Data.status&0xFF)==0x03)
-	{
-		LED(0,OFF);
-	}
-	else
-	{
-	    if(led_cnt==150)
-	    {
-	      LED(0,ON);
-	    }
-	    else if(led_cnt==200)
-	    {
-	      led_cnt=0;
-	      LED(0,OFF);
-	    }
-	}
-
-	//after first lock, determine magnetic inclination and declination
-	if (SYSTEM_initialized)
-	{
-		if ((!declinationAvailable) && (GPS_Data.horizontal_accuracy<10000) && ((GPS_Data.status&0x03)==0x03)) //make sure GPS lock is valid
-		{
-			int status;
-			estimatedDeclination=getDeclination(GPS_Data.latitude,GPS_Data.longitude,GPS_Data.height/1000,2012,&status);
-			if (estimatedDeclination<-32000) estimatedDeclination=-32000;
-			if (estimatedDeclination>32000) estimatedDeclination=32000;
-			declinationAvailable=1;
-		}
-	}
-
-	//toggle green LED and update SDK input struct when GPS data packet is received
-    if (gpsLEDTrigger)
+  //blink red led if no GPS lock available
+  led_cnt++;
+  if((GPS_Data.status&0xFF)==0x03)
+  {
+    LED(0,OFF);
+  }
+  else
+  {
+    if(led_cnt==150)
     {
-		if(led_state)
-		{
-			led_state=0;
-			LED(1,OFF);
-		}
-		else
-		{
-			LED(1,ON);
-			led_state=1;
-		}
+      LED(0,ON);
+    }
+    else if(led_cnt==200)
+    {
+      led_cnt=0;
+      LED(0,OFF);
+    }
+  }
 
-		RO_ALL_Data.GPS_height=GPS_Data.height;
-		RO_ALL_Data.GPS_latitude=GPS_Data.latitude;
-		RO_ALL_Data.GPS_longitude=GPS_Data.longitude;
-		RO_ALL_Data.GPS_speed_x=GPS_Data.speed_x;
-		RO_ALL_Data.GPS_speed_y=GPS_Data.speed_y;
-		RO_ALL_Data.GPS_status=GPS_Data.status;
-		RO_ALL_Data.GPS_sat_num=GPS_Data.numSV;
-		RO_ALL_Data.GPS_week=GPS_Time.week;
-		RO_ALL_Data.GPS_time_of_week=GPS_Time.time_of_week;
-		RO_ALL_Data.GPS_heading=GPS_Data.heading;
-		RO_ALL_Data.GPS_position_accuracy=GPS_Data.horizontal_accuracy;
-		RO_ALL_Data.GPS_speed_accuracy=GPS_Data.speed_accuracy;
-		RO_ALL_Data.GPS_height_accuracy=GPS_Data.vertical_accuracy;
+  //after first lock, determine magnetic inclination and declination
+  if (SYSTEM_initialized)
+  {
+    if ((!declinationAvailable) && (GPS_Data.horizontal_accuracy<10000) && ((GPS_Data.status&0x03)==0x03)) //make sure GPS lock is valid
+    {
+      int status;
+      estimatedDeclination=getDeclination(GPS_Data.latitude,GPS_Data.longitude,GPS_Data.height/1000,2012,&status);
+      if (estimatedDeclination<-32000) estimatedDeclination=-32000;
+      if (estimatedDeclination>32000) estimatedDeclination=32000;
+      declinationAvailable=1;
+    }
+  }
 
-		gpsLEDTrigger=0;
+  //toggle green LED and update SDK input struct when GPS data packet is received
+  if (gpsLEDTrigger)
+  {
+    if(led_state)
+    {
+      led_state=0;
+      LED(1,OFF);
+    }
+    else
+    {
+      LED(1,ON);
+      led_state=1;
     }
 
-    //handle gps data reception
-    uBloxReceiveEngine();
+    RO_ALL_Data.GPS_height=GPS_Data.height;
+    RO_ALL_Data.GPS_latitude=GPS_Data.latitude;
+    RO_ALL_Data.GPS_longitude=GPS_Data.longitude;
+    RO_ALL_Data.GPS_speed_x=GPS_Data.speed_x;
+    RO_ALL_Data.GPS_speed_y=GPS_Data.speed_y;
+    RO_ALL_Data.GPS_status=GPS_Data.status;
+    RO_ALL_Data.GPS_sat_num=GPS_Data.numSV;
+    RO_ALL_Data.GPS_week=GPS_Time.week;
+    RO_ALL_Data.GPS_time_of_week=GPS_Time.time_of_week;
+    RO_ALL_Data.GPS_heading=GPS_Data.heading;
+    RO_ALL_Data.GPS_position_accuracy=GPS_Data.horizontal_accuracy;
+    RO_ALL_Data.GPS_speed_accuracy=GPS_Data.speed_accuracy;
+    RO_ALL_Data.GPS_height_accuracy=GPS_Data.vertical_accuracy;
 
-	//run SDK mainloop. Please put all your data handling / controller code in sdk.c
-	SDK_mainloop();
+    gpsLEDTrigger=0;
+  }
 
-    //write data to transmit buffer for immediate transfer to LL processor
-    HL2LL_write_cycle();
+  //handle gps data reception
+  uBloxReceiveEngine();
 
-    //control pan-tilt-unit ("cam option 4" @ AscTec Pelican)
-    PTU_update();
+  //run SDK mainloop. Please put all your data handling / controller code in sdk.c
+  SDK_mainloop();
 
+  //write data to transmit buffer for immediate transfer to LL processor
+  HL2LL_write_cycle();
 
+  //control pan-tilt-unit ("cam option 4" @ AscTec Pelican)
+  PTU_update();
 }
 
 

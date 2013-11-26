@@ -497,6 +497,14 @@ void SDK_mainloop(void)
     if (checkCamTrigger(hli_config.trigger_rate_cam))
     {
       sendCamTriggerData();
+
+      // send IMU data if this is not sent in this loop iteration
+      // this is to ensure that IMU data is available for each image
+      if (!checkTxPeriod(subscription.imu))
+      {
+        sendImuData();
+      }
+
       camTrigger(ON);
     }
     else
