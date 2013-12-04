@@ -56,7 +56,7 @@ private:
 
   bool use_pressure_height_;
 
-  static const double DEG2RAD = M_PI/180.0;
+  static const double DEG2RAD;
   const Eigen::Quaterniond Q_90_DEG;
 
   void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);

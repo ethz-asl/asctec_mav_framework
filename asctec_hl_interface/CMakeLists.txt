@@ -49,12 +49,15 @@ add_dependencies(hl_node ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(hl_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(ctrl_test src/ctrl_test.cpp)
+add_dependencies(ctrl_test asctec_hl_comm_gencpp)
 target_link_libraries(ctrl_test ${catkin_LIBRARIES})
 
 add_executable(waypoint_server src/waypoint_server.cpp)
+add_dependencies(waypoint_server asctec_hl_comm_gencpp)
 target_link_libraries(waypoint_server ${catkin_LIBRARIES})
 
 add_executable(waypoint_client src/waypoint_client.cpp)
+add_dependencies(waypoint_client asctec_hl_comm_gencpp)
 target_link_libraries(waypoint_client ${catkin_LIBRARIES})
 
 
