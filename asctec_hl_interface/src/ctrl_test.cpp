@@ -41,7 +41,8 @@ void usage()
 {
   std::string text("usage: \n\n");
   text = "ctrl_test motors [0 | 1]\n";
-  text += "ctrl_test ctrl [acc | vel | pos] x y z yaw\n";
+  text += "ctrl_test ctrl [acc | vel | pos | vel_b | pos_b] x y z yaw\n";
+  text += "position / velocity in [m] / [m/s] and yaw in [deg] / [deg/s] (-180 ... 180)\n";
   std::cout << text << std::endl;
 }
 
@@ -89,7 +90,7 @@ int main(int argc, char ** argv)
     msg.x = atof(argv[3]);
     msg.y = atof(argv[4]);
     msg.z = atof(argv[5]);
-    msg.yaw = atof(argv[6]);
+    msg.yaw = atof(argv[6]) * M_PI / 180.0;
     msg.v_max_xy = -1; // use max velocity from config
     msg.v_max_z = -1;
 
@@ -100,6 +101,10 @@ int main(int argc, char ** argv)
       msg.type = asctec_hl_comm::mav_ctrl::velocity;
     else if (type == "pos")
       msg.type = asctec_hl_comm::mav_ctrl::position;
+    else if (type == "vel_b")
+      msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
+    else if (type == "pos_b")
+      msg.type = asctec_hl_comm::mav_ctrl::position_body;
     else
     {
       ROS_ERROR("Command type not recognized");
@@ -119,7 +124,7 @@ int main(int argc, char ** argv)
     }
 
     // reset
-    if (type != "pos")
+    if (type != "pos" && type != "pos_b")
     {
       msg.x = 0;
       msg.y = 0;

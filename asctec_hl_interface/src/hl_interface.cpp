@@ -31,9 +31,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "hl_interface.h"
 #include "helper.h"
+#include <asctec_hl_comm/MotorSpeed.h>
 
 HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
-  nh_(nh), pnh_("~"), comm_(comm), gps_status_(sensor_msgs::NavSatStatus::STATUS_NO_FIX), gps_satellites_used_(0),
+  nh_(nh), pnh_("~/fcu"), comm_(comm), gps_status_(sensor_msgs::NavSatStatus::STATUS_NO_FIX), gps_satellites_used_(0),
       diag_updater_(), diag_imu_freq_(diagnostic_updater::FrequencyStatusParam(&diag_imu_freq_min_,
                                                                                &diag_imu_freq_max_, 0, 5))
 {
@@ -47,6 +48,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
 
   imu_pub_ = nh_.advertise<asctec_hl_comm::mav_imu> ("imu_custom", 1);
   imu_ros_pub_ = nh_.advertise<sensor_msgs::Imu> ("imu", 1);
+  motors_pub_ = nh_.advertise<asctec_hl_comm::MotorSpeed> ("motor_speed", 1);
   gps_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("gps", 1);
   gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustom> ("gps_custom", 1);
   rc_pub_ = nh_.advertise<asctec_hl_comm::mav_rcdata> ("rcdata", 1);
@@ -147,6 +149,15 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
       imu_ros_pub_.publish(msg);
     }
   }
+
+  asctec_hl_comm::MotorSpeedPtr msg_motors (new asctec_hl_comm::MotorSpeed);
+  msg_motors->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+  msg_motors->header.seq = seq;
+  msg_motors->header.frame_id = frame_id_;
+  for(int i = 0; i<6; ++i)
+    msg_motors->motor_speed[i] = data->motors[i];
+
+  motors_pub_.publish(msg_motors);
 
   seq++;
 }
@@ -503,7 +514,7 @@ void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_h
     }
   }
 
-  else if (ctrl.type == asctec_hl_comm::mav_ctrl::velocity)
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::velocity_body)
   {
     if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_GPS)
     {
@@ -524,9 +535,25 @@ void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_h
       if(ctrl_result != NULL)
         ctrl_result->type = -1;
     }
-
   }
-  else if (ctrl.type == asctec_hl_comm::mav_ctrl::position)
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::velocity)
+    {
+      if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_HIGHLEVEL)
+      {
+        sendVelCommandHL(ctrl, ctrl_result);
+        validCommand = true;
+      }
+      else
+      {
+        ROS_WARN_STREAM_THROTTLE(2,
+            "Higlevel or Lowlevel processor position control has not "
+            "been chosen. Set \"position_control\" parameter to "
+            "\"HighLevel\" ! sending nothing to mav !");
+        if(ctrl_result != NULL)
+          ctrl_result->type = -1;
+      }
+    }
+  else if (ctrl.type == asctec_hl_comm::mav_ctrl::position || ctrl.type == asctec_hl_comm::mav_ctrl::position_body)
   {
     // allow to "inherit" max velocity from parameters
     asctec_hl_comm::mav_ctrl ctrl_msg = ctrl;
@@ -639,6 +666,8 @@ void HLInterface::sendVelCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   ctrlHL.heading = 0;
 
   ctrlHL.bitfield = 1;
+  if(msg.type == asctec_hl_comm::mav_ctrl::velocity_body)
+    ctrlHL.bitfield |= EXT_POSITION_CMD_BODYFIXED;
 
   if (ctrl_result != NULL)
   {
@@ -680,6 +709,9 @@ void HLInterface::sendPosCommandHL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   ctrlHL.vMaxZ = static_cast<short>(std::min<float>(config_.max_velocity_z, msg.v_max_z)*1000);
 
   ctrlHL.bitfield = 0;
+
+  if(msg.type == asctec_hl_comm::mav_ctrl::position_body)
+    ctrlHL.bitfield |= EXT_POSITION_CMD_BODYFIXED;
 
   if (ctrl_result != NULL)
   {
