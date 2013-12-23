@@ -45,7 +45,7 @@ set(ASCTEC_HL_INTERFACE_SRC
     )
 
 add_executable(hl_node ${ASCTEC_HL_INTERFACE_SRC} src/node.cpp)
-add_dependencies(hl_node ${${PROJECT_NAME}_EXPORTED_TARGETS})
+add_dependencies(hl_node ${${PROJECT_NAME}_EXPORTED_TARGETS} asctec_hl_comm_gencpp)
 target_link_libraries(hl_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(ctrl_test src/ctrl_test.cpp)
