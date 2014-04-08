@@ -31,6 +31,10 @@
 
 #include "gps_conversion.h"
 
+#ifdef __APPLE__
+#define sincos __sincos
+#endif
+
 namespace asctec_hl_gps
 {
 
