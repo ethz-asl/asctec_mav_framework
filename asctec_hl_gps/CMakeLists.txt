@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(asctec_hl_gps)
 
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs)
+find_package(catkin REQUIRED COMPONENTS cmake_modules roscpp sensor_msgs asctec_hl_comm message_filters std_srvs)
 
 find_package(Eigen REQUIRED)
 
