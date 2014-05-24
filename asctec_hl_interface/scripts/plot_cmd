@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo " ### plotting x, y, z and yaw commands that arrived at the HLP ###"
-rxplot $1/fcu/debug/data[31]:data[32]:data[33]:data[34] -b 10 -l x,y,z,yaw -t "HLP commands"
+rqt_plot $1/fcu/debug/data[31]:data[32]:data[33]:data[34] -b 10 -l x,y,z,yaw -t "HLP commands"

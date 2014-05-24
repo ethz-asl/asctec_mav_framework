@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo " ### plotting orientation qw qx qy qz ###"
-rxplot $1/fcu/imu/orientation/w:x:y:z -b 10
+rqt_plot $1/fcu/imu/orientation/w:x:y:z -b 10
