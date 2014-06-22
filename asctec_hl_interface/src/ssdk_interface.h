@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ros/ros.h>
 #include <tf/transform_datatypes.h>
+#include <boost/signals2.hpp>
 #include <boost/thread.hpp>
 #include <tf/transform_listener.h>
 
@@ -80,7 +81,7 @@ private:
   bool have_config_;
 
   tf::TransformListener tf_listener_;
-  boost::signals::connection tf_callback_;
+  boost::signals2::connection tf_callback_;
 
   /// listens for pose updates via tf
   void tfCallback();
