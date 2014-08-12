@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_fusion_comm
 )
 
+find_package(cmake_modules REQUIRED)
 find_package(Boost REQUIRED COMPONENTS signals system thread)
 
 include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS})

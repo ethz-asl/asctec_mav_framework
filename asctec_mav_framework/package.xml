@@ -3,8 +3,6 @@
   <version>0.1.0</version>
   <description>Framework for data aquisition and position control to be used with the highlevel processor of Ascending Technologies helicopters</description>
   <maintainer email="markus.achtelik_devel@mavt.ethz.ch">Maintained by Markus Achtelik</maintainer>
-
-  <license></license>
   <license>BSD</license>
 
   <url type="website">http://ros.org/wiki/asctec_mav_framework</url>
