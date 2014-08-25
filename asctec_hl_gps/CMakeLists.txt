@@ -3,6 +3,7 @@ project(asctec_hl_gps)
 
 find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs)
 
+find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})

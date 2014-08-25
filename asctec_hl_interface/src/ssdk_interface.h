@@ -35,6 +35,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ros/ros.h>
 #include <tf/transform_datatypes.h>
 #include <boost/thread.hpp>
+
+#if ROS_VERSION_MINIMUM(1, 11, 7)
+#include <boost/signals2.hpp> // ros indigo
+typedef boost::signals2::connection Connection;
+#else
+#include <boost/signals.hpp> // ros hydro or older
+typedef boost::signals::connection Connection;
+#endif
+
+
 #include <tf/transform_listener.h>
 
 // message includes
@@ -80,7 +90,7 @@ private:
   bool have_config_;
 
   tf::TransformListener tf_listener_;
-  boost::signals::connection tf_callback_;
+  Connection tf_callback_;
 
   /// listens for pose updates via tf
   void tfCallback();
