@@ -55,10 +55,10 @@ target_link_libraries(ctrl_test ${catkin_LIBRARIES})
 
 add_executable(waypoint_server src/waypoint_server.cpp)
 add_dependencies(waypoint_server ${catkin_EXPORTED_TARGETS})
-target_link_libraries(waypoint_server ${catkin_LIBRARIES})
+target_link_libraries(waypoint_server ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(waypoint_client src/waypoint_client.cpp)
 add_dependencies(waypoint_client ${catkin_EXPORTED_TARGETS})
-target_link_libraries(waypoint_client ${catkin_LIBRARIES})
+target_link_libraries(waypoint_client ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 
