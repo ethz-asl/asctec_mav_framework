@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo " ### plotting estimated acceleration sensor bias x, y, z [m/s^2] in body coordinates ###"
-rxplot $1/fcu/debug/data[16]:data[17]:data[18] -b 10
+rqt_plot $1/fcu/debug/data[16]:data[17]:data[18] -b 10

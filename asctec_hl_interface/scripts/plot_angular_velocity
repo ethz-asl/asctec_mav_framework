@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo " ### plotting angular velocity roll pitch yaw [rad/s] ###"
-rxplot $1/fcu/imu/angular_velocity/x:y:z -b 10
+rqt_plot $1/fcu/imu/angular_velocity/x:y:z -b 10
