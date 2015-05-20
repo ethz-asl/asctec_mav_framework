@@ -1,6 +1,0 @@
-<launch>
-<node name="set_gps_ref" pkg="asctec_hl_gps" type="set_gps_reference" output="screen" clear_params="false">
-            <remap from="gps" to="fcu/gps" />
-        </node>
-
-</launch>
