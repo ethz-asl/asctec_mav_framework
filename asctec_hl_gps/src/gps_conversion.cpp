@@ -57,6 +57,9 @@ GpsConversion::GpsConversion() :
   gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustomCartesian> ("fcu/gps_position_custom", 1);
   zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
 
+  // Andrew Holliday's modification
+  gps_to_enu_srv_ = nh.advertiseService("gps_to_local_enu", &GpsConversion::wgs84ToEnuSrv, this);
+
   pnh.param("use_pressure_height", use_pressure_height_, false);
   ROS_INFO_STREAM("using height measurement from "<< (use_pressure_height_?"pressure sensor":"GPS"));
 
@@ -264,6 +267,16 @@ Eigen::Vector3d GpsConversion::ecefToEnu(const Eigen::Vector3d & ecef)
   return ecef_ref_orientation_ * (ecef - ecef_ref_point_);
 }
 
+bool GpsConversion::wgs84ToEnuSrv(asctec_hl_gps::Wgs84ToEnuRequest & wgs84Pt,
+                                  asctec_hl_gps::Wgs84ToEnuResponse & enuPt)
+{
+    geometry_msgs::Point tmp = wgs84ToEnu(wgs84Pt.lat, wgs84Pt.lon, wgs84Pt.alt);
+    enuPt.x = tmp.x;
+    enuPt.y = tmp.y;
+    enuPt.z = tmp.z;
+    return true;
+}
+    
 geometry_msgs::Point GpsConversion::wgs84ToEnu(const double & latitude, const double & longitude,
                                                const double & altitude)
 {
