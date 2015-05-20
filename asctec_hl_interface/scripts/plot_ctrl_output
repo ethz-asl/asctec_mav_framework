@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo " ### plotting output to LL controller, roll pitch yaw [rad] ###"
-rxplot $1/fcu/debug/data[0]:data[1]:data[2] -b 10 -l roll,pitch,yaw -t "HLP ctrl out"
+rqt_plot $1/fcu/debug/data[0]:data[1]:data[2]

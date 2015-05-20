@@ -1,3 +1,4 @@
 #!/bin/bash
+
 echo " ### plotting velocity estimated by the luenberger observer x, y, z [m/s] in NED coordinates !!! ###"
-rxplot $1/fcu/debug/data[19]:data[20]:data[21] -b 10
+rqt_plot $1/fcu/debug/data[19]:data[20]:data[21]
