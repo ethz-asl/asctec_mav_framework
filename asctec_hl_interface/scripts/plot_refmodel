@@ -1,5 +1,5 @@
 #!/bin/bash
 
 echo " ### plotting reference model x, y, z, v_x, v_y, v_z [m] / [m/s] ###"
-rxplot $1/fcu/debug/data[24]:data[25]:data[26]:data[35]:data[36]:data[37] -b 10
+rqt_plot $1/fcu/debug/data[24]:data[25]:data[26]:data[35]:data[36]:data[37]
 
