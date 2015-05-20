@@ -1,0 +1,6 @@
+<launch>
+        <node name="gps_conv" pkg="asctec_hl_gps" type="gps_conversion" output="screen" clear_params="false">
+            <param name="use_pressure_height" value="true" />
+        </node>
+</launch>
+

@@ -22,6 +22,7 @@
 #include <asctec_hl_comm/GpsCustomCartesian.h>
 #include <std_srvs/Empty.h>
 #include <Eigen/Eigen>
+#include "asctec_hl_gps/Wgs84ToEnu.h"
 
 namespace asctec_hl_gps{
 
@@ -34,6 +35,7 @@ private:
   ros::Publisher gps_position_pub_;
   ros::Publisher gps_custom_pub_;
   ros::ServiceServer zero_height_srv_;
+  ros::ServiceServer gps_to_enu_srv_;
 
   message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_sync_;
   message_filters::Subscriber<asctec_hl_comm::mav_imu> imu_sub_sync_;
@@ -66,6 +68,8 @@ private:
   void initReference(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d ecefToEnu(const Eigen::Vector3d & ecef);
+  bool wgs84ToEnuSrv(asctec_hl_gps::Wgs84ToEnuRequest & wgs84Pt,
+                     asctec_hl_gps::Wgs84ToEnuResponse & enuPt);
   geometry_msgs::Point wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude);
   geometry_msgs::Point wgs84ToNwu(const double & latitude, const double & longitude, const double & altitude);
   bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
