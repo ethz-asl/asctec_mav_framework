@@ -30,6 +30,7 @@ add_service_files(
   FILES
   mav_ctrl_motors.srv
   MavCtrlSrv.srv
+  Wgs84ToEnu.srv
 )
 
 add_action_files(
