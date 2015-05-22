@@ -39,6 +39,7 @@ import actionlib
 import re
 import time
 import sys
+import os
 
 import asctec_hl_comm.msg
 
@@ -122,6 +123,8 @@ if __name__ == '__main__':
     waypoint_file = "sampleways.txt"
     if len(sys.argv) > 1:
         waypoint_file = str(sys.argv[1])
+        if not os.path.isfile(waypoint_file) or not os.access(waypoint_file, os.R_OK):
+            sys.exit("%s is not a valid file or it is not readable" % waypoint_file)
     try:
         # Initializes a rospy node so that the SimpleActionClient can
         # publish and subscribe over ROS.
