@@ -20,9 +20,9 @@
 #include <asctec_hl_comm/mav_imu.h>
 #include <asctec_hl_comm/GpsCustom.h>
 #include <asctec_hl_comm/GpsCustomCartesian.h>
+#include <asctec_hl_comm/Wgs84ToEnu.h>
 #include <std_srvs/Empty.h>
 #include <Eigen/Eigen>
-#include "asctec_hl_gps/Wgs84ToEnu.h"
 
 namespace asctec_hl_gps{
 
@@ -68,8 +68,8 @@ private:
   void initReference(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d ecefToEnu(const Eigen::Vector3d & ecef);
-  bool wgs84ToEnuSrv(asctec_hl_gps::Wgs84ToEnuRequest & wgs84Pt,
-                     asctec_hl_gps::Wgs84ToEnuResponse & enuPt);
+  bool wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
+                     asctec_hl_comm::Wgs84ToEnuResponse & enuPt);
   geometry_msgs::Point wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude);
   geometry_msgs::Point wgs84ToNwu(const double & latitude, const double & longitude, const double & altitude);
   bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);

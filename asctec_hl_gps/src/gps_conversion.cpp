@@ -267,8 +267,8 @@ Eigen::Vector3d GpsConversion::ecefToEnu(const Eigen::Vector3d & ecef)
   return ecef_ref_orientation_ * (ecef - ecef_ref_point_);
 }
 
-bool GpsConversion::wgs84ToEnuSrv(asctec_hl_gps::Wgs84ToEnuRequest & wgs84Pt,
-                                  asctec_hl_gps::Wgs84ToEnuResponse & enuPt)
+bool GpsConversion::wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
+                                  asctec_hl_comm::Wgs84ToEnuResponse & enuPt)
 {
     geometry_msgs::Point tmp = wgs84ToEnu(wgs84Pt.lat, wgs84Pt.lon, wgs84Pt.alt);
     enuPt.x = tmp.x;
