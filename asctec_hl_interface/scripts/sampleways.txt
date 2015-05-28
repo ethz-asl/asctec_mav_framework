@@ -1,6 +1,6 @@
 # this is a comment
 
-# structure: goal_pos(x,y,z), goal_yaw, max_speed(x,y,z), accuracy_pos[m], accuracy_yaw[°], time at wp
+# structure: goal_pos(x,y,z) [m], goal_yaw [rad], max_speed(x,y,z) [m/s], accuracy_pos [m], accuracy_yaw [rad], timeout [s], time at wp [s]
  
 0     0     0.5     0     0.5 0.5 0.5 0.3 0.1 30 10
 0     -2.0  0.5     0     0.5 0.5 0.5 0.3 0.1 30 5
