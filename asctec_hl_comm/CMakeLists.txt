@@ -43,6 +43,9 @@ generate_messages(
   DEPENDENCIES geometry_msgs std_msgs sensor_msgs actionlib_msgs
 )
 
+# Include generated header files
+include_directories(include ${catkin_INCLUDE_DIRS})
+
 # TODO: fill in what other packages will need to use this package
 ## DEPENDS: system dependencies of this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
