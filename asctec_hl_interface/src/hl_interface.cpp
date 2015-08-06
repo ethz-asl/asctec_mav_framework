@@ -59,6 +59,8 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
 
   motor_srv_ = nh_.advertiseService("motor_control", &HLInterface::cbMotors, this);
   crtl_srv_ = nh_.advertiseService("control", &HLInterface::cbCtrl, this);
+  camera_srv = nh_.advertiseService("camera_control", &HLInterface::cbCameraCtrl, this);
+
 
   config_ = asctec_hl_interface::HLInterfaceConfig::__getDefault__();
 
@@ -485,6 +487,33 @@ bool HLInterface::cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req,
 void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & msg)
 {
   sendControlCmd(*msg);
+}
+
+bool HLInterface::cbCameraCtrl(asctec_hl_comm::camera_ctrl::Request &req, asctec_hl_comm::camera_ctrl::Response &resp)
+{
+    HLI_CAMERA data;
+
+    data.desired_cam_pitch = req.camera_pitch;
+    data.desired_cam_roll = req.camera_roll;
+
+    // make sure packet arrives
+    bool success = false;
+    for (int i = 0; i < 5; i++)
+    {
+      success = comm_->sendPacketAck(HLI_PACKET_ID_CAMERA, data, 0.5);
+      if (success)
+        break;
+    }
+
+    if(!success)
+    {
+      ROS_WARN("unable to send camera control command");
+      resp.result = false;
+      return false;
+    }
+
+    resp.result = true;
+    return true;
 }
 
 bool HLInterface::cbCtrl(asctec_hl_comm::MavCtrlSrv::Request & req, asctec_hl_comm::MavCtrlSrv::Response & resp)

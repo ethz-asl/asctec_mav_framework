@@ -98,6 +98,10 @@ PacketInfo *packetCmdLL;
 HLI_MOTORS motors;
 PacketInfo *packetMotors;
 
+// camera PTU control
+HLI_CAMERA camera;
+PacketInfo *packetCamera;
+
 HLI_EXT_POSITION ext_position_update;
 PacketInfo *packetExtPosition;
 
@@ -161,6 +165,7 @@ void sdkInit(void)
   packetBaudrate = registerPacket(HLI_PACKET_ID_BAUDRATE, &baudrate);
   packetSubscription = registerPacket(HLI_PACKET_ID_SUBSCRIPTION, &subscription);
   packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &hli_config);
+  packetCamera = registerPacket(HLI_PACKET_ID_CAMERA, &camera);
 
   UART0_rxFlush();
   UART0_txFlush();
@@ -260,6 +265,16 @@ void SDK_mainloop(void)
     motor_state = motors.motors;
     motor_state_count = 0;
     packetMotors->updated = 0;
+  }
+
+  // check for camera control commands
+  if (packetCamera->updated)
+  {
+    int16_t cam_pitch = camera.desired_cam_pitch * 1000;
+    int16_t cam_roll  = camera.desired_cam_roll  * 1000;
+    PTU_set_desired_pitch(cam_pitch);
+    PTU_set_desired_roll(cam_roll);
+    packetCamera->updated = 0;
   }
 
   // check for new HL command packet
