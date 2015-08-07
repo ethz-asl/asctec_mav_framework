@@ -491,10 +491,18 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
 
 bool HLInterface::cbCameraCtrl(asctec_hl_comm::camera_ctrl::Request &req, asctec_hl_comm::camera_ctrl::Response &resp)
 {
-    HLI_CAMERA data;
 
-    data.desired_cam_pitch = req.camera_pitch;
-    data.desired_cam_roll = req.camera_roll;
+    if(fabs(req.camera_pitch_deg) > 180.0 || fabs(req.camera_roll_deg) > 180.0)
+    {
+	ROS_WARN("invalid camera pich/roll value (must be in [-180,+180])");
+        resp.result = false;
+        return false;
+    }
+	
+    HLI_CAMERA data;
+	
+    data.desired_cam_pitch = static_cast<int32_t>(req.camera_pitch_deg);
+    data.desired_cam_roll = static_cast<int32_t>(req.camera_roll_deg);
 
     // make sure packet arrives
     bool success = false;

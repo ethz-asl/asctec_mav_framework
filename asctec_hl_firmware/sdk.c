@@ -272,7 +272,7 @@ void SDK_mainloop(void)
   if (packetCamera->updated)
   {
     int cam_pitch = camera.desired_cam_pitch * 1000;
-    int cam_roll  = camera.desired_cam_roll  * 1000;
+    int cam_roll  = camera.desired_cam_roll * 1000;
     PTU_set_desired_pitch(cam_pitch);
     PTU_set_desired_roll(cam_roll);
     packetCamera->updated = 0;
