@@ -1,4 +1,4 @@
-int16      camera_pitch         # desired camera pitch angle (deg)
-int16      camera_roll	        # desired camera roll angle  (deg)
+int32      camera_pitch         # desired camera pitch angle (deg)
+int32      camera_roll	        # desired camera roll angle  (deg)
 ---
 bool	   result		# true if successfully sent the command to HLP

@@ -370,8 +370,8 @@ typedef struct
 __attribute__((packed))
 {
   /// desired roll and pitch angles for the camera
-  int16_t desired_cam_pitch;
-  int16_t desired_cam_roll;
+  int32_t desired_cam_pitch;
+  int32_t desired_cam_roll;
 }HLI_CAMERA;
 
 #endif

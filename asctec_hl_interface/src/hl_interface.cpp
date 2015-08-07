@@ -500,7 +500,7 @@ bool HLInterface::cbCameraCtrl(asctec_hl_comm::camera_ctrl::Request &req, asctec
     bool success = false;
     for (int i = 0; i < 5; i++)
     {
-      success = comm_->sendPacketAck(HLI_PACKET_ID_CAMERA, data, 0.5);
+      success = comm_->sendPacket(HLI_PACKET_ID_CAMERA, data);
       if (success)
         break;
     }

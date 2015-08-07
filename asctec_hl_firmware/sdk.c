@@ -39,6 +39,7 @@
 #include "LPC214x.h"
 #include "hardware.h"
 #include "mymath.h"
+#include "pelican_ptu.h"
 
 #include <ekf/autogen_ekf_propagation.h>
 #include <ekf/autogen_ekf_propagation_initialize.h>
@@ -270,8 +271,8 @@ void SDK_mainloop(void)
   // check for camera control commands
   if (packetCamera->updated)
   {
-    int16_t cam_pitch = camera.desired_cam_pitch * 1000;
-    int16_t cam_roll  = camera.desired_cam_roll  * 1000;
+    int cam_pitch = camera.desired_cam_pitch * 1000;
+    int cam_roll  = camera.desired_cam_roll  * 1000;
     PTU_set_desired_pitch(cam_pitch);
     PTU_set_desired_roll(cam_roll);
     packetCamera->updated = 0;
