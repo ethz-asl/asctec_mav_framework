@@ -41,14 +41,15 @@ namespace asctec_hl_gps
 {
 
 GpsConversion::GpsConversion() :
-  nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1),
-      gps_imu_sync_(GpsImuSyncPolicy(10), gps_sub_sync_, imu_sub_sync_), have_reference_(false),
+  nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), pressure_height_sub_sync_(nh_, "fcu/pressure_height", 1),
+      gps_pressure_height_sync_(GpsPressureHeightSyncPolicy(10), gps_sub_sync_, pressure_height_sub_sync_), have_reference_(false),
       height_offset_(0), set_height_zero_(false), Q_90_DEG(sqrt(2.0) / 2.0, 0, 0, sqrt(2.0) / 2.0)
 {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCallback, this);
+  imu_sub_ = nh.subscribe("fcu/imu", 1, &GpsConversion::imuCallback, this);
+  pressure_height_sub_ = nh.subscribe("fcu/pressure_height", 1, &GpsConversion::pressureHeightCallback, this);
   gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsConversion::gpsCallback, this);
   gps_custom_sub_ = nh.subscribe("fcu/gps_custom", 1, &GpsConversion::gpsCustomCallback, this);
 
@@ -65,8 +66,8 @@ GpsConversion::GpsConversion() :
 
   if (use_pressure_height_)
   {
-    gps_imu_sync_.registerCallback(boost::bind(&GpsConversion::syncCallback, this, _1, _2));
-    gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
+    gps_pressure_height_sync_.registerCallback(boost::bind(&GpsConversion::syncCallback, this, _1, _2));
+    gps_pressure_height_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
   }
 
   if (nh.getParam("/gps_ref_latitude", ref_latitude_))
@@ -89,7 +90,7 @@ bool GpsConversion::zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyRe
 }
 
 void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
-                                 const asctec_hl_comm::mav_imuConstPtr & imu)
+                                 const geometry_msgs::PointStampedConstPtr & pressure_height)
 {
   if (gps->status.status != sensor_msgs::NavSatStatus::STATUS_FIX)
   {
@@ -106,7 +107,7 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
   if (set_height_zero_)
   {
     set_height_zero_ = false;
-    height_offset_ = imu->height;
+    height_offset_ = pressure_height->point.z;
   }
 
   if (use_pressure_height_)
@@ -114,7 +115,7 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
     asctec_hl_comm::PositionWithCovarianceStampedPtr msg(new asctec_hl_comm::PositionWithCovarianceStamped);
     msg->header = gps->header;
     msg->position = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
-    msg->position.z = imu->height - height_offset_;
+    msg->position.z = pressure_height->point.z - height_offset_;
 
     gps_position_pub_.publish(msg);
   }
@@ -178,7 +179,17 @@ void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & 
 
 }
 
-void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
+void GpsConversion::pressureHeightCallback(const geometry_msgs::PointStampedConstPtr& pressure_height)
+{
+  if (set_height_zero_)
+  {
+    set_height_zero_ = false;
+    height_offset_ = pressure_height->point.z;
+  }
+  height_ = pressure_height->point.z;
+}
+
+void GpsConversion::imuCallback(const sensor_msgs::ImuConstPtr & imu)
 {
   if (gps_position_.x == 0 && gps_position_.y == 0 && gps_position_.z == 0)
   {
@@ -190,12 +201,6 @@ void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
   {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
-  }
-
-  if (set_height_zero_)
-  {
-    set_height_zero_ = false;
-    height_offset_ = imu->height;
   }
 
   if (gps_pose_pub_.getNumSubscribers() > 0)
@@ -212,7 +217,7 @@ void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
     msg->pose.pose.orientation.y = orientation.y();
     msg->pose.pose.orientation.z = orientation.z();
     msg->pose.pose.position = gps_position_;
-    msg->pose.pose.position.z = imu->height - height_offset_;
+    msg->pose.pose.position.z = height_ - height_offset_;
 
     gps_pose_pub_.publish(msg);
   }
@@ -314,4 +319,3 @@ geometry_msgs::Point GpsConversion::wgs84ToNwu(const double & latitude, const do
 }
 
 } // end namespace
-

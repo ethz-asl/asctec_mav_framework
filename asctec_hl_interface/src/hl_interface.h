@@ -37,14 +37,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "comm.h"
 
 // message includes
-#include <asctec_hl_comm/mav_rcdata.h>
-#include <asctec_hl_comm/mav_ctrl.h>
-#include <asctec_hl_comm/mav_imu.h>
-#include <asctec_hl_comm/mav_status.h>
 #include <asctec_hl_comm/GpsCustom.h>
+#include <asctec_hl_comm/mav_ctrl.h>
+#include <asctec_hl_comm/mav_rcdata.h>
+#include <asctec_hl_comm/mav_status.h>
+#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
-#include <geometry_msgs/Vector3Stamped.h>
 
 // service includes
 #include <asctec_hl_comm/MavCtrlSrv.h>
@@ -77,8 +77,8 @@ private:
   ros::Publisher gps_pub_;
   ros::Publisher gps_custom_pub_;
   ros::Publisher imu_ros_pub_; ///< publisher for sensor_msgs/Imu message
-  ros::Publisher imu_pub_; ///< publisher for custom asctec_hl_comm/mav_imu message
   ros::Publisher motors_pub_; ///< publisher for motor message
+  ros::Publisher pressure_height_pub_;
   ros::Publisher rc_pub_;
   ros::Publisher status_pub_;
   ros::Publisher mag_pub_;

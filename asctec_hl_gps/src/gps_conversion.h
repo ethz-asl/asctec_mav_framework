@@ -8,27 +8,26 @@
 #ifndef GPS_CONVERSION_H_
 #define GPS_CONVERSION_H_
 
-#include <ros/ros.h>
-
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-
-#include <sensor_msgs/NavSatFix.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <asctec_hl_comm/PositionWithCovarianceStamped.h>
-#include <asctec_hl_comm/mav_imu.h>
 #include <asctec_hl_comm/GpsCustom.h>
 #include <asctec_hl_comm/GpsCustomCartesian.h>
+#include <asctec_hl_comm/PositionWithCovarianceStamped.h>
 #include <asctec_hl_comm/Wgs84ToEnu.h>
-#include <std_srvs/Empty.h>
 #include <Eigen/Eigen>
+#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
+#include <ros/ros.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <std_srvs/Empty.h>
 
 namespace asctec_hl_gps{
 
 class GpsConversion
 {
-  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, asctec_hl_comm::mav_imu> GpsImuSyncPolicy;
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, geometry_msgs::PointStamped> GpsPressureHeightSyncPolicy;
 private:
   ros::NodeHandle nh_;
   ros::Publisher gps_pose_pub_;
@@ -38,12 +37,13 @@ private:
   ros::ServiceServer gps_to_enu_srv_;
 
   message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_sync_;
-  message_filters::Subscriber<asctec_hl_comm::mav_imu> imu_sub_sync_;
-  message_filters::Synchronizer<GpsImuSyncPolicy> gps_imu_sync_;
+  message_filters::Subscriber<geometry_msgs::PointStamped> pressure_height_sub_sync_;
+  message_filters::Synchronizer<GpsPressureHeightSyncPolicy> gps_pressure_height_sync_;
 
   ros::Subscriber gps_sub_;
   ros::Subscriber gps_custom_sub_;
   ros::Subscriber imu_sub_;
+  ros::Subscriber pressure_height_sub_;
   geometry_msgs::Point gps_position_;
 
   bool have_reference_;
@@ -54,6 +54,7 @@ private:
   Eigen::Quaterniond ecef_ref_orientation_;
 
   double height_offset_;
+  double height_;
   bool set_height_zero_;
 
   bool use_pressure_height_;
@@ -61,10 +62,12 @@ private:
   static const double DEG2RAD = M_PI/180.0;
   const Eigen::Quaterniond Q_90_DEG;
 
-  void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);
+  void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
+                    const geometry_msgs::PointStampedConstPtr & pressure_height);
   void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);
   void gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps);
-  void imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
+  void imuCallback(const sensor_msgs::ImuConstPtr & imu);
+  void pressureHeightCallback(const geometry_msgs::PointStampedConstPtr& pressure_height);
   void initReference(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d ecefToEnu(const Eigen::Vector3d & ecef);
