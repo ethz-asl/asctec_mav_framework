@@ -92,20 +92,17 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   static int seq = 0;
   diag_imu_freq_.tick();
 
-  double roll = helper::asctecAttitudeToSI(data->ang_roll);
-  double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
-  double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
-
-  if (yaw > M_PI)
-    yaw -= 2 * M_PI;
-
-  double height = data->height * 0.001;
-  double differential_height = data->differential_height * 0.001;
-
   uint32_t subs_imu_ros = imu_ros_pub_.getNumSubscribers();
 
   if (subs_imu_ros > 0)
   {
+    double roll = helper::asctecAttitudeToSI(data->ang_roll);
+    double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
+    double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
+
+    if (yaw > M_PI) {
+      yaw -= 2 * M_PI;
+    }
     geometry_msgs::Quaternion q;
     helper::angle2quaternion(roll, pitch, yaw, &q.w, &q.x, &q.y, &q.z);
 
@@ -125,6 +122,17 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
     helper::setDiagonalCovariance(msg->linear_acceleration_covariance, linear_acceleration_variance_);
 
     imu_ros_pub_.publish(msg);
+  }
+
+  uint32_t subs_pressure_height = pressure_height_pub_.getNumSubscribers();
+  if (subs_pressure_height > 0) {
+    double height = data->height * 1.0e-3;
+    geometry_msgs::PointStampedPtr msg(new geometry_msgs::PointStamped);
+    msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+    msg->header.seq = seq;
+    msg->header.frame_id = frame_id_;
+    msg->point.z = height;
+    pressure_height_pub_.publish(msg);
   }
 
   asctec_hl_comm::MotorSpeedPtr msg_motors (new asctec_hl_comm::MotorSpeed);
