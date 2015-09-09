@@ -41,7 +41,7 @@ namespace asctec_hl_gps
 {
 
 GpsConversion::GpsConversion() :
-  nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1),
+      nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1),
       gps_imu_sync_(GpsImuSyncPolicy(10), gps_sub_sync_, imu_sub_sync_), have_reference_(false),
       height_offset_(0), set_height_zero_(false), Q_90_DEG(sqrt(2.0) / 2.0, 0, 0, sqrt(2.0) / 2.0)
 {
@@ -54,6 +54,7 @@ GpsConversion::GpsConversion() :
 
   gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("fcu/gps_pose", 1);
   gps_position_pub_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("fcu/gps_position", 1);
+  gps_position_nocov_pub_ = nh_.advertise<geometry_msgs::PointStamped> ("fcu/gps_position_nocov", 1);
   gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustomCartesian> ("fcu/gps_position_custom", 1);
   zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
 
@@ -69,17 +70,18 @@ GpsConversion::GpsConversion() :
     gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
   }
 
-  if (nh.getParam("/gps_ref_latitude", ref_latitude_))
-  {
-    if (nh.getParam("/gps_ref_longitude", ref_longitude_))
-    {
-      if (nh.getParam("/gps_ref_altitude", ref_altitude_))
-      {
-        initReference(ref_latitude_, ref_longitude_, ref_altitude_);
-        have_reference_ = true;
-      }
+  // Wait until GPS reference parameters are initialized.
+  // Note: this loop probably does not belong to a constructor, it'd be better placed in some sort
+  // of "init()" function
+  do {
+    ROS_INFO("Waiting for GPS reference parameters...");
+    if (nh.getParam("/gps_ref_latitude", ref_latitude_) &&
+        nh.getParam("/gps_ref_longitude", ref_longitude_) &&
+        nh.getParam("/gps_ref_altitude", ref_altitude_)) {
+      initReference(ref_latitude_, ref_longitude_, ref_altitude_);
+      have_reference_ = true;
     }
-  }
+  } while (!have_reference_);
 }
 
 bool GpsConversion::zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp)
@@ -115,8 +117,12 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
     msg->header = gps->header;
     msg->position = wgs84ToEnu(gps->latitude, gps->longitude, gps->altitude);
     msg->position.z = imu->height - height_offset_;
-
     gps_position_pub_.publish(msg);
+
+    geometry_msgs::PointStampedPtr msg_nocov(new geometry_msgs::PointStamped);
+    msg_nocov->header = msg->header;
+    msg_nocov->point = msg->position;
+    gps_position_nocov_pub_.publish(msg_nocov);
   }
 }
 
@@ -138,6 +144,11 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
       msg->position = gps_position_;
       msg->covariance = gps->position_covariance;
       gps_position_pub_.publish(msg);
+
+      geometry_msgs::PointStampedPtr msg_nocov(new geometry_msgs::PointStamped);
+      msg_nocov->header = gps->header;
+      msg_nocov->point = gps_position_;
+      gps_position_nocov_pub_.publish(msg_nocov);
     }
   }
   else
@@ -276,7 +287,7 @@ bool GpsConversion::wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
     enuPt.z = tmp.z;
     return true;
 }
-    
+
 geometry_msgs::Point GpsConversion::wgs84ToEnu(const double & latitude, const double & longitude,
                                                const double & altitude)
 {
@@ -314,4 +325,3 @@ geometry_msgs::Point GpsConversion::wgs84ToNwu(const double & latitude, const do
 }
 
 } // end namespace
-

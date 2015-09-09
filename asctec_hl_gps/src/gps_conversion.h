@@ -15,6 +15,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <sensor_msgs/NavSatFix.h>
+#include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <asctec_hl_comm/PositionWithCovarianceStamped.h>
 #include <asctec_hl_comm/mav_imu.h>
@@ -28,11 +29,19 @@ namespace asctec_hl_gps{
 
 class GpsConversion
 {
-  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, asctec_hl_comm::mav_imu> GpsImuSyncPolicy;
+public:
+  GpsConversion();
+
 private:
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, asctec_hl_comm::mav_imu> GpsImuSyncPolicy;
+
+  static const double DEG2RAD = M_PI/180.0;
+  const Eigen::Quaterniond Q_90_DEG;
+
   ros::NodeHandle nh_;
   ros::Publisher gps_pose_pub_;
   ros::Publisher gps_position_pub_;
+  ros::Publisher gps_position_nocov_pub_;
   ros::Publisher gps_custom_pub_;
   ros::ServiceServer zero_height_srv_;
   ros::ServiceServer gps_to_enu_srv_;
@@ -58,9 +67,6 @@ private:
 
   bool use_pressure_height_;
 
-  static const double DEG2RAD = M_PI/180.0;
-  const Eigen::Quaterniond Q_90_DEG;
-
   void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);
   void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);
   void gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps);
@@ -73,10 +79,6 @@ private:
   geometry_msgs::Point wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude);
   geometry_msgs::Point wgs84ToNwu(const double & latitude, const double & longitude, const double & altitude);
   bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
-
-
-public:
-  GpsConversion();
 };
 
 } // end namespace
