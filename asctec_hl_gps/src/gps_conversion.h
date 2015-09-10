@@ -17,6 +17,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <asctec_hl_comm/PositionWithCovarianceStamped.h>
 #include <asctec_hl_comm/mav_imu.h>
 #include <asctec_hl_comm/GpsCustom.h>
@@ -24,6 +25,10 @@
 #include <asctec_hl_comm/Wgs84ToEnu.h>
 #include <std_srvs/Empty.h>
 #include <Eigen/Eigen>
+
+#include "geodesy_ned.hpp"
+
+#include <memory>
 
 namespace asctec_hl_gps{
 
@@ -35,7 +40,7 @@ public:
 private:
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, asctec_hl_comm::mav_imu> GpsImuSyncPolicy;
 
-  static const double DEG2RAD = M_PI/180.0;
+  static const double DEG2RAD;
   const Eigen::Quaterniond Q_90_DEG;
 
   ros::NodeHandle nh_;
@@ -43,6 +48,8 @@ private:
   ros::Publisher gps_position_pub_;
   ros::Publisher gps_position_nocov_pub_;
   ros::Publisher gps_custom_pub_;
+  ros::Publisher gps_filtered_pub_;
+
   ros::ServiceServer zero_height_srv_;
   ros::ServiceServer gps_to_enu_srv_;
 
@@ -53,6 +60,8 @@ private:
   ros::Subscriber gps_sub_;
   ros::Subscriber gps_custom_sub_;
   ros::Subscriber imu_sub_;
+  ros::Subscriber filtered_odometry_sub_;
+
   geometry_msgs::Point gps_position_;
 
   bool have_reference_;
@@ -67,18 +76,25 @@ private:
 
   bool use_pressure_height_;
 
+  std::unique_ptr<geodesy_ned::Ned> ned_;
+
   void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);
   void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);
   void gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps);
   void imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
+  void filteredOdometryCallback(const nav_msgs::Odometry & filtered_odometry);
+
   void initReference(const double & latitude, const double & longitude, const double & altitude);
+
   Eigen::Vector3d wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude);
   Eigen::Vector3d ecefToEnu(const Eigen::Vector3d & ecef);
-  bool wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
-                     asctec_hl_comm::Wgs84ToEnuResponse & enuPt);
+
   geometry_msgs::Point wgs84ToEnu(const double & latitude, const double & longitude, const double & altitude);
   geometry_msgs::Point wgs84ToNwu(const double & latitude, const double & longitude, const double & altitude);
+
   bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
+  bool wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
+                     asctec_hl_comm::Wgs84ToEnuResponse & enuPt);
 };
 
 } // end namespace

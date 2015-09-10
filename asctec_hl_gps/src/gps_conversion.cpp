@@ -40,6 +40,8 @@ template<typename T> void sincos(T ang, T* s, T* c){
 namespace asctec_hl_gps
 {
 
+const double GpsConversion::DEG2RAD = M_PI/180.0;
+
 GpsConversion::GpsConversion() :
       nh_(""), gps_sub_sync_(nh_, "fcu/gps", 1), imu_sub_sync_(nh_, "fcu/imu_custom", 1),
       gps_imu_sync_(GpsImuSyncPolicy(10), gps_sub_sync_, imu_sub_sync_), have_reference_(false),
@@ -47,28 +49,6 @@ GpsConversion::GpsConversion() :
 {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
-
-  imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCallback, this);
-  gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsConversion::gpsCallback, this);
-  gps_custom_sub_ = nh.subscribe("fcu/gps_custom", 1, &GpsConversion::gpsCustomCallback, this);
-
-  gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("fcu/gps_pose", 1);
-  gps_position_pub_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("fcu/gps_position", 1);
-  gps_position_nocov_pub_ = nh_.advertise<geometry_msgs::PointStamped> ("fcu/gps_position_nocov", 1);
-  gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustomCartesian> ("fcu/gps_position_custom", 1);
-  zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
-
-  // Andrew Holliday's modification
-  gps_to_enu_srv_ = nh.advertiseService("gps_to_local_enu", &GpsConversion::wgs84ToEnuSrv, this);
-
-  pnh.param("use_pressure_height", use_pressure_height_, false);
-  ROS_INFO_STREAM("using height measurement from "<< (use_pressure_height_?"pressure sensor":"GPS"));
-
-  if (use_pressure_height_)
-  {
-    gps_imu_sync_.registerCallback(boost::bind(&GpsConversion::syncCallback, this, _1, _2));
-    gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
-  }
 
   // Wait until GPS reference parameters are initialized.
   // Note: this loop probably does not belong to a constructor, it'd be better placed in some sort
@@ -81,7 +61,38 @@ GpsConversion::GpsConversion() :
       initReference(ref_latitude_, ref_longitude_, ref_altitude_);
       have_reference_ = true;
     }
+    else {
+      ROS_INFO("GPS reference not ready yet, use set_gps_reference_node to set it");
+      ros::Duration(0.5).sleep(); // sleep for half a second
+    }
   } while (!have_reference_);
+  ROS_INFO("GPS reference initialized correctly %f, %f, %f", ref_latitude_, ref_longitude_, ref_altitude_);
+
+  imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCallback, this);
+  gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsConversion::gpsCallback, this);
+  gps_custom_sub_ = nh.subscribe("fcu/gps_custom", 1, &GpsConversion::gpsCustomCallback, this);
+  filtered_odometry_sub_ = nh.subscribe("fcu/filtered_odometry", 1, &GpsConversion::filteredOdometryCallback, this);
+
+  gps_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped> ("fcu/gps_pose", 1);
+  gps_position_pub_ = nh_.advertise<asctec_hl_comm::PositionWithCovarianceStamped> ("fcu/gps_position", 1);
+  gps_position_nocov_pub_ = nh_.advertise<geometry_msgs::PointStamped> ("fcu/gps_position_nocov", 1);
+  gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustomCartesian> ("fcu/gps_position_custom", 1);
+
+  gps_filtered_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("fcu/gps_position_filtered", 1);
+
+  zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
+
+  // Andrew Holliday's modification
+  gps_to_enu_srv_ = nh.advertiseService("gps_to_local_enu", &GpsConversion::wgs84ToEnuSrv, this);
+
+  pnh.param("use_pressure_height", use_pressure_height_, false);
+  ROS_INFO_STREAM("using height measurement from " << (use_pressure_height_?"pressure sensor":"GPS"));
+
+  if (use_pressure_height_)
+  {
+    gps_imu_sync_.registerCallback(boost::bind(&GpsConversion::syncCallback, this, _1, _2));
+    gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180)); // gps arrives at max with 5 Hz
+  }
 }
 
 bool GpsConversion::zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp)
@@ -229,6 +240,31 @@ void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
   }
 }
 
+void GpsConversion::filteredOdometryCallback(const nav_msgs::Odometry & filtered_odometry)
+{
+  // Fill NavSatFix message using filtered odometry and publish
+  // Point being we obtain the filtered position of the vehicle in global
+  // lat/lon/altitude coordinates
+
+  sensor_msgs::NavSatFixPtr global_position(new sensor_msgs::NavSatFix);
+
+  global_position->header = filtered_odometry.header;
+
+  // filtered_odometry is in ENU
+  const double north =  filtered_odometry.pose.pose.position.y;
+  const double east  =  filtered_odometry.pose.pose.position.x;
+  const double depth = -filtered_odometry.pose.pose.position.z;
+
+  ned_->ned2Geodetic(north, east, depth,
+                     global_position->latitude,
+                     global_position->longitude,
+                     global_position->altitude);
+
+  // TODO: grab covariance from odometry
+  global_position->position_covariance_type = sensor_msgs::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
+  gps_filtered_pub_.publish(global_position);
+}
+
 void GpsConversion::initReference(const double & latitude, const double & longitude, const double & altitude)
 {
   Eigen::Matrix3d R;
@@ -251,6 +287,8 @@ void GpsConversion::initReference(const double & latitude, const double & longit
   ecef_ref_orientation_ = Eigen::Quaterniond(R);
 
   ecef_ref_point_ = wgs84ToEcef(latitude, longitude, altitude);
+
+  ned_.reset(new geodesy_ned::Ned(latitude, longitude, altitude));
 }
 
 Eigen::Vector3d GpsConversion::wgs84ToEcef(const double & latitude, const double & longitude, const double & altitude)
@@ -276,16 +314,6 @@ Eigen::Vector3d GpsConversion::wgs84ToEcef(const double & latitude, const double
 Eigen::Vector3d GpsConversion::ecefToEnu(const Eigen::Vector3d & ecef)
 {
   return ecef_ref_orientation_ * (ecef - ecef_ref_point_);
-}
-
-bool GpsConversion::wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
-                                  asctec_hl_comm::Wgs84ToEnuResponse & enuPt)
-{
-    geometry_msgs::Point tmp = wgs84ToEnu(wgs84Pt.lat, wgs84Pt.lon, wgs84Pt.alt);
-    enuPt.x = tmp.x;
-    enuPt.y = tmp.y;
-    enuPt.z = tmp.z;
-    return true;
 }
 
 geometry_msgs::Point GpsConversion::wgs84ToEnu(const double & latitude, const double & longitude,
@@ -322,6 +350,16 @@ geometry_msgs::Point GpsConversion::wgs84ToNwu(const double & latitude, const do
   //  ROS_INFO("local metric coordinates: x: %f/%f y: %f/%f", ret.x, dbg_y, ret.y, -dbg_x);
 
   return ret;
+}
+
+bool GpsConversion::wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
+                                  asctec_hl_comm::Wgs84ToEnuResponse & enuPt)
+{
+    geometry_msgs::Point tmp = wgs84ToEnu(wgs84Pt.lat, wgs84Pt.lon, wgs84Pt.alt);
+    enuPt.x = tmp.x;
+    enuPt.y = tmp.y;
+    enuPt.z = tmp.z;
+    return true;
 }
 
 } // end namespace
