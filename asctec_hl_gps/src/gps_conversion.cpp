@@ -1,8 +1,8 @@
 /*
 
  Copyright (c) 2012, Markus Achtelik, ASL, ETH Zurich, Switzerland
- You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
  Copyright (c) 2015, Marija Popovic, ASL, ETH Zurich, Switzerland
+ You can contact the author at <markus dot achtelik at mavt dot ethz dot ch>
 
  All rights reserved.
 
@@ -32,12 +32,6 @@
 
 #include "gps_conversion.h"
 
-#ifdef __APPLE__
-template<typename T> void sincos(T ang, T* s, T* c) {
-  __sincos(ang, s, c);
-}
-#endif
-
 namespace asctec_hl_gps {
 
 GpsConversion::GpsConversion()
@@ -45,9 +39,9 @@ GpsConversion::GpsConversion()
       gps_sub_sync_(nh_, "fcu/gps", 1),
       imu_sub_sync_(nh_, "fcu/imu_custom", 1),
       gps_imu_sync_(GpsImuSyncPolicy(10), gps_sub_sync_, imu_sub_sync_),
-      have_reference_(false),
+      haveReference_(false),
       height_offset_(0),
-      set_height_zero_(false),
+      setHeightZero_(false),
       Q_90_DEG(sqrt(2.0) / 2.0, 0, 0, sqrt(2.0) / 2.0)
 {
   ros::NodeHandle nh;
@@ -65,12 +59,12 @@ GpsConversion::GpsConversion()
     if (nh.getParam("/gps_ref_latitude", latitude) && nh.getParam("/gps_ref_longitude", longitude)
         && nh.getParam("/gps_ref_altitude", altitude)) {
       geodetic_converter_.initialiseReference(latitude, longitude, altitude);
-      have_reference_ = true;
+      haveReference_ = true;
     } else {
       ROS_INFO("GPS reference not ready yet, use set_gps_reference_node to set it");
       ros::Duration(0.5).sleep();  // sleep for half a second
     }
-  } while (!have_reference_);
+  } while (!haveReference_);
   ROS_INFO("GPS reference initialized correctly %f, %f, %f", geodetic_converter_.initial_latitude,
            geodetic_converter_.initial_longitude, geodetic_converter_.initial_height);
 
@@ -95,11 +89,11 @@ GpsConversion::GpsConversion()
   // Andrew Holliday's modification
   gps_to_enu_srv_ = nh.advertiseService("gps_to_local_enu", &GpsConversion::wgs84ToEnuSrv, this);
 
-  pnh.param("use_pressure_height", use_pressure_height_, false);
+  pnh.param("use_pressure_height", usePressureHeight_, false);
   ROS_INFO_STREAM(
-      "using height measurement from " << (use_pressure_height_ ? "pressure sensor" : "GPS"));
+      "using height measurement from " << (usePressureHeight_ ? "pressure sensor" : "GPS"));
 
-  if (use_pressure_height_) {
+  if (usePressureHeight_) {
     gps_imu_sync_.registerCallback(boost::bind(&GpsConversion::syncCallback, this, _1, _2));
     gps_imu_sync_.setInterMessageLowerBound(0, ros::Duration(0.180));  // gps arrives at max with 5 Hz
   }
@@ -107,7 +101,7 @@ GpsConversion::GpsConversion()
 
 bool GpsConversion::zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp)
 {
-  set_height_zero_ = true;
+  setHeightZero_ = true;
   return true;
 }
 
@@ -119,17 +113,17 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
     return;
   }
 
-  if (!have_reference_) {
+  if (!haveReference_) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }
 
-  if (set_height_zero_) {
-    set_height_zero_ = false;
+  if (setHeightZero_) {
+    setHeightZero_ = false;
     height_offset_ = imu->height;
   }
 
-  if (use_pressure_height_) {
+  if (usePressureHeight_) {
     asctec_hl_comm::PositionWithCovarianceStampedPtr msg(
         new asctec_hl_comm::PositionWithCovarianceStamped);
     msg->header = gps->header;
@@ -154,7 +148,7 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
 
 void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
 {
-  if (!have_reference_) {
+  if (!haveReference_) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }
@@ -169,7 +163,7 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
     gps_position_.y = y;
     gps_position_.z = z;
 
-    if (!use_pressure_height_) {
+    if (!usePressureHeight_) {
       asctec_hl_comm::PositionWithCovarianceStampedPtr msg(
           new asctec_hl_comm::PositionWithCovarianceStamped);
       msg->header = gps->header;
@@ -189,7 +183,7 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
 
 void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps)
 {
-  if (!have_reference_) {
+  if (!haveReference_) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }
@@ -216,7 +210,7 @@ void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & 
 
     msg->velocity_covariance = gps->velocity_covariance;
 
-    if (use_pressure_height_) {
+    if (usePressureHeight_) {
       msg->position.z = gps->pressure_height - height_offset_;
     }
     gps_custom_pub_.publish(msg);
@@ -231,13 +225,13 @@ void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
     return;
   }
 
-  if (!have_reference_) {
+  if (!haveReference_) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }
 
-  if (set_height_zero_) {
-    set_height_zero_ = false;
+  if (setHeightZero_) {
+    setHeightZero_ = false;
     height_offset_ = imu->height;
   }
 

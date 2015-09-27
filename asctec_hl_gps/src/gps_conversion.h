@@ -30,7 +30,6 @@
 #include <memory>
 
 namespace asctec_hl_gps{
-
 class GpsConversion
 {
  public:
@@ -41,6 +40,17 @@ class GpsConversion
       asctec_hl_comm::mav_imu> GpsImuSyncPolicy;
 
   const Eigen::Quaterniond Q_90_DEG;
+
+  void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
+                    const asctec_hl_comm::mav_imuConstPtr & imu);
+  void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);
+  void gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps);
+  void imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
+  void filteredOdometryCallback(const nav_msgs::Odometry & filtered_odometry);
+
+  bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
+  bool wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
+                     asctec_hl_comm::Wgs84ToEnuResponse & enuPt);
 
   ros::NodeHandle nh_;
   ros::Publisher gps_pose_pub_;
@@ -62,28 +72,15 @@ class GpsConversion
   ros::Subscriber filtered_odometry_sub_;
 
   geodetic_conv::GeodeticConverter geodetic_converter_;
-
   geometry_msgs::Point gps_position_;
 
-  bool have_reference_;
+  bool haveReference_;
+  bool usePressureHeight_;
+  bool setHeightZero_;
 
   double height_offset_;
-  bool set_height_zero_;
 
-  bool use_pressure_height_;
-
-  void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
-                    const asctec_hl_comm::mav_imuConstPtr & imu);
-  void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);
-  void gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps);
-  void imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
-  void filteredOdometryCallback(const nav_msgs::Odometry & filtered_odometry);
-
-  bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
-  bool wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
-                     asctec_hl_comm::Wgs84ToEnuResponse & enuPt);
-};
-
-}  // end namespace
+}; // class GpsConverter
+}  // end asctec_hl_gps namespace
 
 #endif /* GPS_FUSION_H_ */
