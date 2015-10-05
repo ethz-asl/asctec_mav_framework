@@ -39,7 +39,6 @@ GpsConversion::GpsConversion()
       gps_sub_sync_(nh_, "fcu/gps", 1),
       imu_sub_sync_(nh_, "fcu/imu_custom", 1),
       gps_imu_sync_(GpsImuSyncPolicy(10), gps_sub_sync_, imu_sub_sync_),
-      haveReference_(false),
       height_offset_(0),
       setHeightZero_(false),
       Q_90_DEG(sqrt(2.0) / 2.0, 0, 0, sqrt(2.0) / 2.0)
@@ -59,14 +58,22 @@ GpsConversion::GpsConversion()
     if (nh.getParam("/gps_ref_latitude", latitude) && nh.getParam("/gps_ref_longitude", longitude)
         && nh.getParam("/gps_ref_altitude", altitude)) {
       geodetic_converter_.initialiseReference(latitude, longitude, altitude);
-      haveReference_ = true;
     } else {
       ROS_INFO("GPS reference not ready yet, use set_gps_reference_node to set it");
       ros::Duration(0.5).sleep();  // sleep for half a second
     }
-  } while (!haveReference_);
-  ROS_INFO("GPS reference initialized correctly %f, %f, %f", geodetic_converter_.initial_latitude,
-           geodetic_converter_.initial_longitude, geodetic_converter_.initial_height);
+  } while (!geodetic_converter_.isInitialised());
+
+
+  double initial_latitude;
+  double initial_longitude;
+  double initial_altitude;
+
+  // Read reference point
+  geodetic_converter_.getReference(&initial_latitude, &initial_longitude, &initial_altitude);
+
+  ROS_INFO("GPS reference initialized correctly %f, %f, %f", initial_latitude, initial_longitude,
+           initial_altitude);
 
   imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCallback, this);
   gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsConversion::gpsCallback, this);
@@ -113,7 +120,7 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
     return;
   }
 
-  if (!haveReference_) {
+  if (!geodetic_converter_.isInitialised()) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }
@@ -148,7 +155,7 @@ void GpsConversion::syncCallback(const sensor_msgs::NavSatFixConstPtr & gps,
 
 void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
 {
-  if (!haveReference_) {
+  if (!geodetic_converter_.isInitialised()) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }
@@ -183,7 +190,7 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
 
 void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps)
 {
-  if (!haveReference_) {
+  if (!geodetic_converter_.isInitialised()) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }
@@ -225,7 +232,7 @@ void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
     return;
   }
 
-  if (!haveReference_) {
+  if (!geodetic_converter_.isInitialised()) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
     return;
   }

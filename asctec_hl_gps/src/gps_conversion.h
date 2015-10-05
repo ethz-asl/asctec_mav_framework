@@ -25,7 +25,7 @@
 #include <asctec_hl_comm/Wgs84ToEnu.h>
 #include <std_srvs/Empty.h>
 #include <Eigen/Eigen>
-#include <geodetic_utils/geodetic_conv.h>
+#include <geodetic_utils/geodetic_conv.hpp>
 
 #include <memory>
 
@@ -71,10 +71,9 @@ class GpsConversion
   ros::Subscriber imu_sub_;
   ros::Subscriber filtered_odometry_sub_;
 
-  geodetic_conv::GeodeticConverter geodetic_converter_;
+  geodetic_converter::GeodeticConverter geodetic_converter_;
   geometry_msgs::Point gps_position_;
 
-  bool haveReference_;
   bool usePressureHeight_;
   bool setHeightZero_;
 
