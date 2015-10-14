@@ -15,6 +15,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <sensor_msgs/NavSatFix.h>
+#include <sensor_msgs/Imu.h>
+
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <nav_msgs/Odometry.h>
@@ -45,7 +48,8 @@ class GpsConversion
                     const asctec_hl_comm::mav_imuConstPtr & imu);
   void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);
   void gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & gps);
-  void imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
+  void imuCallback(const sensor_msgs::ImuConstPtr & imu);                       // For simulation
+  void imuCustomCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
   void filteredOdometryCallback(const nav_msgs::Odometry & filtered_odometry);
 
   bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
@@ -54,6 +58,7 @@ class GpsConversion
 
   ros::NodeHandle nh_;
   ros::Publisher gps_pose_pub_;
+  ros::Publisher gps_pose_nocov_pub_;
   ros::Publisher gps_position_pub_;
   ros::Publisher gps_position_nocov_pub_;
   ros::Publisher gps_custom_pub_;
@@ -69,6 +74,7 @@ class GpsConversion
   ros::Subscriber gps_sub_;
   ros::Subscriber gps_custom_sub_;
   ros::Subscriber imu_sub_;
+  ros::Subscriber imu_custom_sub_;
   ros::Subscriber filtered_odometry_sub_;
 
   geodetic_converter::GeodeticConverter geodetic_converter_;

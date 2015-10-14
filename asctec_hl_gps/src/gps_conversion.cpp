@@ -75,13 +75,15 @@ GpsConversion::GpsConversion()
   ROS_INFO("GPS reference initialized correctly %f, %f, %f", initial_latitude, initial_longitude,
            initial_altitude);
 
-  imu_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCallback, this);
+  imu_sub_ = nh.subscribe("fcu/imu", 1, &GpsConversion::imuCallback, this);
+  imu_custom_sub_ = nh.subscribe("fcu/imu_custom", 1, &GpsConversion::imuCustomCallback, this);
   gps_sub_ = nh.subscribe("fcu/gps", 1, &GpsConversion::gpsCallback, this);
   gps_custom_sub_ = nh.subscribe("fcu/gps_custom", 1, &GpsConversion::gpsCustomCallback, this);
   filtered_odometry_sub_ = nh.subscribe("fcu/filtered_odometry", 1,
                                         &GpsConversion::filteredOdometryCallback, this);
 
   gps_pose_pub_ = nh_.advertise < geometry_msgs::PoseWithCovarianceStamped > ("fcu/gps_pose", 1);
+  gps_pose_nocov_pub_ = nh_.advertise < geometry_msgs::PoseStamped > ("fcu/gps_pose_nocov", 1);
   gps_position_pub_ = nh_.advertise < asctec_hl_comm::PositionWithCovarianceStamped
       > ("fcu/gps_position", 1);
   gps_position_nocov_pub_ = nh_.advertise < geometry_msgs::PointStamped
@@ -166,8 +168,11 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
     double z;
 
     geodetic_converter_.geodetic2Enu(gps->latitude, gps->longitude, gps->altitude, &x, &y, &z);
-    gps_position_.x = x;
-    gps_position_.y = y;
+
+    // Temporary fix (NWU -> ENU)
+    //TODO: add param to specify whether you are in sim or not
+    gps_position_.x = y;
+    gps_position_.y = -x;
     gps_position_.z = z;
 
     if (!usePressureHeight_) {
@@ -225,7 +230,54 @@ void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & 
 
 }
 
-void GpsConversion::imuCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
+// This is the function to look at for "Flourish"
+void GpsConversion::imuCallback(const sensor_msgs::ImuConstPtr & imu)
+{
+  if (gps_position_.x == 0 && gps_position_.y == 0 && gps_position_.z == 0) {
+    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
+    return;
+  }
+
+  if (!geodetic_converter_.isInitialised()) {
+    ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
+    return;
+  }
+
+  if (gps_pose_pub_.getNumSubscribers() > 0) {
+    geometry_msgs::PoseWithCovarianceStampedPtr msg(new geometry_msgs::PoseWithCovarianceStamped);
+
+    // magnetic compass is zero when pointing north, need to rotate measurement 90 deg towards east to be consistent with ENU
+
+    Eigen::Quaterniond orientation(imu->orientation.w, imu->orientation.x, imu->orientation.y,
+                                   imu->orientation.z);
+    msg->header = imu->header;
+    msg->header.frame_id = "world";
+    msg->pose.pose.position = gps_position_;
+    msg->pose.pose.orientation.w = orientation.w();
+    msg->pose.pose.orientation.x = orientation.x();
+    msg->pose.pose.orientation.y = orientation.y();
+    msg->pose.pose.orientation.z = orientation.z();
+
+    // Fixed covariance
+    msg->pose.covariance.assign(0);
+    msg->pose.covariance[6*0+0] = 0.1;
+    msg->pose.covariance[6*1+1] = 0.1;
+    msg->pose.covariance[6*2+2] = 0.1;
+    msg->pose.covariance[6*3+3] = 0.01;
+    msg->pose.covariance[6*4+4] = 0.01;
+    msg->pose.covariance[6*5+5] = 0.01;
+
+    gps_pose_pub_.publish(msg);
+
+    geometry_msgs::PoseStampedPtr msg_nocov(new geometry_msgs::PoseStamped);
+    msg_nocov->header = msg->header;
+    msg_nocov->pose = msg->pose.pose;
+    gps_pose_nocov_pub_.publish(msg_nocov);
+
+  }
+}
+
+void GpsConversion::imuCustomCallback(const asctec_hl_comm::mav_imuConstPtr & imu)
 {
   if (gps_position_.x == 0 && gps_position_.y == 0 && gps_position_.z == 0) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
