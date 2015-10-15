@@ -99,6 +99,8 @@ GpsConversion::GpsConversion()
   gps_to_enu_srv_ = nh.advertiseService("gps_to_local_enu", &GpsConversion::wgs84ToEnuSrv, this);
 
   pnh.param("use_pressure_height", usePressureHeight_, false);
+  pnh.param("sim", isSim_);
+
   ROS_INFO_STREAM(
       "using height measurement from " << (usePressureHeight_ ? "pressure sensor" : "GPS"));
 
@@ -169,11 +171,22 @@ void GpsConversion::gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps)
 
     geodetic_converter_.geodetic2Enu(gps->latitude, gps->longitude, gps->altitude, &x, &y, &z);
 
-    // Temporary fix (NWU -> ENU)
-    //TODO: add param to specify whether you are in sim or not
-    gps_position_.x = y;
-    gps_position_.y = -x;
-    gps_position_.z = z;
+    gps_message_ = *gps;
+
+    // (NWU -> ENU) for simulation
+    if (isSim_) {
+      gps_position_.x = y;
+      gps_position_.y = -x;
+      gps_position_.z = z;
+    }
+
+    // Add base_link offset
+    double initial_latitude;
+    double initial_longitude;
+    double initial_altitude;
+
+    geodetic_converter_.getReference(&initial_latitude, &initial_longitude, &initial_altitude);
+    gps_position_.z = z + initial_altitude;
 
     if (!usePressureHeight_) {
       asctec_hl_comm::PositionWithCovarianceStampedPtr msg(
@@ -230,13 +243,8 @@ void GpsConversion::gpsCustomCallback(const asctec_hl_comm::GpsCustomConstPtr & 
 
 }
 
-// This is the function to look at for "Flourish"
 void GpsConversion::imuCallback(const sensor_msgs::ImuConstPtr & imu)
 {
-  if (gps_position_.x == 0 && gps_position_.y == 0 && gps_position_.z == 0) {
-    ROS_WARN_STREAM_THROTTLE(1, "No GPS fix");
-    return;
-  }
 
   if (!geodetic_converter_.isInitialised()) {
     ROS_WARN_STREAM_THROTTLE(1, "No GPS reference point set, not publishing");
@@ -246,26 +254,22 @@ void GpsConversion::imuCallback(const sensor_msgs::ImuConstPtr & imu)
   if (gps_pose_pub_.getNumSubscribers() > 0) {
     geometry_msgs::PoseWithCovarianceStampedPtr msg(new geometry_msgs::PoseWithCovarianceStamped);
 
-    // magnetic compass is zero when pointing north, need to rotate measurement 90 deg towards east to be consistent with ENU
-
-    Eigen::Quaterniond orientation(imu->orientation.w, imu->orientation.x, imu->orientation.y,
-                                   imu->orientation.z);
     msg->header = imu->header;
     msg->header.frame_id = "world";
     msg->pose.pose.position = gps_position_;
+
+    // IMU orientation data (discarded for pose message in robot_localization)
+    Eigen::Quaterniond orientation(imu->orientation.w, imu->orientation.x, imu->orientation.y,
+                                   imu->orientation.z);
     msg->pose.pose.orientation.w = orientation.w();
     msg->pose.pose.orientation.x = orientation.x();
     msg->pose.pose.orientation.y = orientation.y();
     msg->pose.pose.orientation.z = orientation.z();
 
-    // Fixed covariance
-    msg->pose.covariance.assign(0);
-    msg->pose.covariance[6*0+0] = 0.1;
-    msg->pose.covariance[6*1+1] = 0.1;
-    msg->pose.covariance[6*2+2] = 0.1;
-    msg->pose.covariance[6*3+3] = 0.01;
-    msg->pose.covariance[6*4+4] = 0.01;
-    msg->pose.covariance[6*5+5] = 0.01;
+    // Add covariances from GPS sensor
+    for (int n = 0; n <= 2; ++n) {
+      msg->pose.covariance[6 * n + n] = gps_message_.position_covariance[3 * n + n];
+    }
 
     gps_pose_pub_.publish(msg);
 

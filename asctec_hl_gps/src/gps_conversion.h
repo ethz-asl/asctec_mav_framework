@@ -1,5 +1,5 @@
 /*
- * gps_fusion.h
+ * gps_conversion.h
  *
  *  Created on: Jun 22, 2011
  *      Author: acmarkus
@@ -79,9 +79,12 @@ class GpsConversion
 
   geodetic_converter::GeodeticConverter geodetic_converter_;
   geometry_msgs::Point gps_position_;
+  sensor_msgs::NavSatFix gps_message_;
 
   bool usePressureHeight_;
   bool setHeightZero_;
+
+  bool isSim_;
 
   double height_offset_;
 
