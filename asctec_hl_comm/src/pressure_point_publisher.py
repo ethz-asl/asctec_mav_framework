@@ -9,6 +9,7 @@ def callback(data):
     
     rospy.loginfo(rospy.get_caller_id() + "Pressure: %f", height)
     pt = PointStamped()
+    pt.header = data.header
     pt.point.z = height
     pub = rospy.Publisher('pressure_height_point', PointStamped, queue_size=1)
     pub.publish(pt)
