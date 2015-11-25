@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
   ros::V_string args;
   ros::removeROSArgs(argc, argv, args);
 
-  g_its = 50; // default number of fixes
+  g_its = 2; // default number of fixes
   g_mode = MODE_AVERAGE; // average by default
 
   // Look for argument: number of iterations/fixes
