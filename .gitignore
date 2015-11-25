@@ -16,7 +16,6 @@ asctec_hl_comm/msg/WaypointActionResult.msg
 asctec_hl_comm/msg/WaypointFeedback.msg
 asctec_hl_comm/msg/WaypointGoal.msg
 asctec_hl_comm/msg/WaypointResult.msg
-asctec_hl_comm/src/
 asctec_hl_interface/bin/
 asctec_hl_interface/cfg/cpp/
 asctec_hl_interface/cfg/hl_interface.cfgc
