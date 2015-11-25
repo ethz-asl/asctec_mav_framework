@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(asctec_hl_interface)
 
-find_package(catkin REQUIRED COMPONENTS 
-    roscpp 
-    sensor_msgs 
-    tf 
-    dynamic_reconfigure 
-    asctec_hl_comm 
-    actionlib 
-    diagnostic_updater 
-    sensor_fusion_comm
+find_package(catkin REQUIRED COMPONENTS
+  actionlib
+  asctec_hl_comm
+  diagnostic_updater
+  dynamic_reconfigure
+  geometry_msgs
+  roscpp
+  sensor_fusion_comm
+  sensor_msgs
+  tf
 )
 
 find_package(cmake_modules REQUIRED)
@@ -29,13 +30,13 @@ generate_dynamic_reconfigure_options(cfg/HLInterface.cfg cfg/SSDK.cfg)
 
 ## DEPENDS: system dependencies of this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## INCLUDE_DIRS: 
+## INCLUDE_DIRS:
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 catkin_package(
-    DEPENDS 
-    CATKIN_DEPENDS roscpp sensor_msgs tf dynamic_reconfigure asctec_hl_comm actionlib diagnostic_updater sensor_fusion_comm
-    INCLUDE_DIRS 
-    LIBRARIES 
+    DEPENDS
+    CATKIN_DEPENDS actionlib asctec_hl_comm diagnostic_updater dynamic_reconfigure geometry_msgs roscpp sensor_fusion_comm sensor_msgs tf
+    INCLUDE_DIRS
+    LIBRARIES
 )
 
 set(ASCTEC_HL_INTERFACE_SRC
@@ -60,5 +61,3 @@ target_link_libraries(waypoint_server ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 add_executable(waypoint_client src/waypoint_client.cpp)
 add_dependencies(waypoint_client ${catkin_EXPORTED_TARGETS})
 target_link_libraries(waypoint_client ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-
-

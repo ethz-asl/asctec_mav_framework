@@ -32,5 +32,3 @@ target_link_libraries(gps_conversion_node ${catkin_LIBRARIES})
 add_executable(set_gps_reference_node src/set_gps_reference_node.cpp)
 add_dependencies(set_gps_reference_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(set_gps_reference_node ${catkin_LIBRARIES})
-
-

@@ -13,17 +13,16 @@ set(CMAKE_BUILD_TYPE Release)
 
 add_message_files(
   FILES
-  DoubleArrayStamped.msg  
-  GpsCustomCartesian.msg  
-  GpsCustom.msg  
-  mav_ctrl.msg  
-  mav_ekf.msg  
-  mav_imu.msg  
-  mav_rcdata.msg  
-  mav_state.msg  
-  mav_status.msg  
-  PositionWithCovarianceStamped.msg
+  DoubleArrayStamped.msg
+  GpsCustom.msg
+  GpsCustomCartesian.msg
+  mav_ctrl.msg
+  mav_ekf.msg
+  mav_rcdata.msg
+  mav_state.msg
+  mav_status.msg
   MotorSpeed.msg
+  PositionWithCovarianceStamped.msg
 )
 
 add_service_files(
@@ -49,11 +48,11 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 # TODO: fill in what other packages will need to use this package
 ## DEPENDS: system dependencies of this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## INCLUDE_DIRS: 
+## INCLUDE_DIRS:
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 catkin_package(
-    DEPENDS 
+    DEPENDS
     CATKIN_DEPENDS message_runtime actionlib_msgs geometry_msgs sensor_msgs
     INCLUDE_DIRS include
-    LIBRARIES 
+    LIBRARIES
 )
