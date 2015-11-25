@@ -46,7 +46,7 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   angular_velocity_variance_ *= angular_velocity_variance_;
   linear_acceleration_variance_ *= linear_acceleration_variance_;
 
-  imu_pub_ = nh_.advertise<asctec_hl_comm::mav_imu> ("imu_custom", 1);
+  pressure_height_pub_ = nh_.advertise<geometry_msgs::PointStamped> ("pressure_height", 1);
   imu_ros_pub_ = nh_.advertise<sensor_msgs::Imu> ("imu", 1);
   motors_pub_ = nh_.advertise<asctec_hl_comm::MotorSpeed> ("motor_speed", 1);
   gps_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("gps", 1);
@@ -92,62 +92,47 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   static int seq = 0;
   diag_imu_freq_.tick();
 
-  double roll = helper::asctecAttitudeToSI(data->ang_roll);
-  double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
-  double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
-
-  if (yaw > M_PI)
-    yaw -= 2 * M_PI;
-
-  double height = data->height * 0.001;
-  double differential_height = data->differential_height * 0.001;
-
-  uint32_t subs_imu = imu_pub_.getNumSubscribers();
   uint32_t subs_imu_ros = imu_ros_pub_.getNumSubscribers();
 
-  if (subs_imu > 0 || subs_imu_ros > 0)
+  if (subs_imu_ros > 0)
   {
+    double roll = helper::asctecAttitudeToSI(data->ang_roll);
+    double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
+    double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
+
+    if (yaw > M_PI) {
+      yaw -= 2 * M_PI;
+    }
     geometry_msgs::Quaternion q;
     helper::angle2quaternion(roll, pitch, yaw, &q.w, &q.x, &q.y, &q.z);
 
-    if (subs_imu > 0)
-    {
-      asctec_hl_comm::mav_imuPtr msg(new asctec_hl_comm::mav_imu);
+    sensor_msgs::ImuPtr msg(new sensor_msgs::Imu);
 
-      msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
-      msg->header.seq = seq;
-      msg->header.frame_id = frame_id_;
-      msg->acceleration.x = helper::asctecAccToSI(data->acc_x);
-      msg->acceleration.y = helper::asctecAccToSI(data->acc_y);
-      msg->acceleration.z = helper::asctecAccToSI(data->acc_z);
-      msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
-      msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
-      msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
-      msg->differential_height = differential_height;
-      msg->height = height;
-      msg->orientation = q;
+    msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+    msg->header.seq = seq;
+    msg->header.frame_id = frame_id_;
+    msg->linear_acceleration.x = helper::asctecAccToSI(data->acc_x);
+    msg->linear_acceleration.y = helper::asctecAccToSI(data->acc_y);
+    msg->linear_acceleration.z = helper::asctecAccToSI(data->acc_z);
+    msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
+    msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
+    msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
+    msg->orientation = q;
+    helper::setDiagonalCovariance(msg->angular_velocity_covariance, angular_velocity_variance_);
+    helper::setDiagonalCovariance(msg->linear_acceleration_covariance, linear_acceleration_variance_);
 
-      imu_pub_.publish(msg);
-    }
-    if (subs_imu_ros > 0)
-    {
-      sensor_msgs::ImuPtr msg(new sensor_msgs::Imu);
+    imu_ros_pub_.publish(msg);
+  }
 
-      msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
-      msg->header.seq = seq;
-      msg->header.frame_id = frame_id_;
-      msg->linear_acceleration.x = helper::asctecAccToSI(data->acc_x);
-      msg->linear_acceleration.y = helper::asctecAccToSI(data->acc_y);
-      msg->linear_acceleration.z = helper::asctecAccToSI(data->acc_z);
-      msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
-      msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
-      msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
-      msg->orientation = q;
-      helper::setDiagonalCovariance(msg->angular_velocity_covariance, angular_velocity_variance_);
-      helper::setDiagonalCovariance(msg->linear_acceleration_covariance, linear_acceleration_variance_);
-
-      imu_ros_pub_.publish(msg);
-    }
+  uint32_t subs_pressure_height = pressure_height_pub_.getNumSubscribers();
+  if (subs_pressure_height > 0) {
+    double height = data->height * 1.0e-3;
+    geometry_msgs::PointStampedPtr msg(new geometry_msgs::PointStamped);
+    msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+    msg->header.seq = seq;
+    msg->header.frame_id = frame_id_;
+    msg->point.z = height;
+    pressure_height_pub_.publish(msg);
   }
 
   asctec_hl_comm::MotorSpeedPtr msg_motors (new asctec_hl_comm::MotorSpeed);
@@ -814,5 +799,3 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
 
   config_ = config;
 }
-
-

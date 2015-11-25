@@ -144,7 +144,7 @@ inline int yaw2asctec(const double & yaw)
 {
   return ((yaw < 0 ? yaw + 2 * M_PI : yaw) * 180.0 / M_PI) * 1000.0;
 }
-	
+
 #ifdef __APPLE__
 /* Possible method for setting __x87_inline_math__ */
 #if (defined(__i386__) || defined(i386) || defined(__amd64) || defined(__x86_64))

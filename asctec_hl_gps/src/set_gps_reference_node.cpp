@@ -45,9 +45,9 @@ void gpsCb(const sensor_msgs::NavSatFixConstPtr & msg) {
     }
 
     ros::NodeHandle nh;
-    nh.setParam("/gps_ref_latitude", g_lat_ref);
-    nh.setParam("/gps_ref_longitude", g_lon_ref);
-    nh.setParam("/gps_ref_altitude", g_alt_ref);
+    nh.setParam("gps_ref_latitude", g_lat_ref);
+    nh.setParam("gps_ref_longitude", g_lon_ref);
+    nh.setParam("gps_ref_altitude", g_alt_ref);
 
     ROS_INFO("Final reference position: %f, %f, %f", g_lat_ref, g_lon_ref, g_alt_ref);
 

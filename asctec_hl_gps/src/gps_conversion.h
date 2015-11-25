@@ -52,7 +52,7 @@ class GpsConversion
   void imuCustomCallback(const asctec_hl_comm::mav_imuConstPtr & imu);
   void filteredOdometryCallback(const nav_msgs::Odometry & filtered_odometry);
 
-  bool zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
+  bool zeroHeightCallback(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp);
   bool wgs84ToEnuSrv(asctec_hl_comm::Wgs84ToEnuRequest & wgs84Pt,
                      asctec_hl_comm::Wgs84ToEnuResponse & enuPt);
 

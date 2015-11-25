@@ -51,8 +51,6 @@ GpsConversion::GpsConversion()
   double altitude;
 
   // Wait until GPS reference parameters are initialized.
-  // Note: this loop probably does not belong to a constructor, it'd be better placed in some sort
-  // of "init()" function
   do {
     ROS_INFO("Waiting for GPS reference parameters...");
     if (nh.getParam("/gps_ref_latitude", latitude) && nh.getParam("/gps_ref_longitude", longitude)
@@ -93,7 +91,7 @@ GpsConversion::GpsConversion()
 
   gps_filtered_pub_ = nh_.advertise < sensor_msgs::NavSatFix > ("fcu/gps_position_filtered", 1);
 
-  zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCb, this);
+  zero_height_srv_ = nh.advertiseService("set_height_zero", &GpsConversion::zeroHeightCallback, this);
 
   // Andrew Holliday's modification
   gps_to_enu_srv_ = nh.advertiseService("gps_to_local_enu", &GpsConversion::wgs84ToEnuSrv, this);
@@ -110,7 +108,7 @@ GpsConversion::GpsConversion()
   }
 }
 
-bool GpsConversion::zeroHeightCb(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp)
+bool GpsConversion::zeroHeightCallback(std_srvs::EmptyRequest & req, std_srvs::EmptyResponse & resp)
 {
   setHeightZero_ = true;
   return true;
