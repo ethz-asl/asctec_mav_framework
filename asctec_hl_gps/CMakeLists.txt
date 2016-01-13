@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(asctec_hl_gps)
 
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs geodetic_utils)
+find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs)
 
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
@@ -20,9 +20,9 @@ add_definitions(--std=c++11)
 
 catkin_package(
     DEPENDS eigen
-    CATKIN_DEPENDS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs geodetic_utils
+    CATKIN_DEPENDS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs 
     INCLUDE_DIRS
-    LIBRARIES geodetic_utils
+    LIBRARIES # TODO
 )
 
 add_executable(gps_conversion_node src/gps_conversion.cpp src/gps_conversion_node.cpp)
