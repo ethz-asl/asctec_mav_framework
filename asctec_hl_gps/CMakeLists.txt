@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(asctec_hl_gps)
 
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs asctec_hl_comm message_filters std_srvs)
+find_package(catkin REQUIRED COMPONENTS cmake_modules roscpp sensor_msgs asctec_hl_comm message_filters std_srvs)
 
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
@@ -25,9 +25,15 @@ catkin_package(
     LIBRARIES # TODO
 )
 
+#<<<<<<< HEAD
 add_executable(gps_conversion_node src/gps_conversion.cpp src/gps_conversion_node.cpp)
 add_dependencies(gps_conversion_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gps_conversion_node ${catkin_LIBRARIES})
+#=======
+#add_executable(gps_conversion src/gps_conversion.cpp src/gps_conversion_node.cpp)
+#add_dependencies(gps_conversion asctec_hl_comm_gencpp)
+#target_link_libraries(gps_conversion ${catkin_LIBRARIES})
+#>>>>>>> ed720b49ea1cd602b75e823aa79c195c875b4e56
 
 add_executable(set_gps_reference_node src/set_gps_reference_node.cpp)
 add_dependencies(set_gps_reference_node ${catkin_EXPORTED_TARGETS})

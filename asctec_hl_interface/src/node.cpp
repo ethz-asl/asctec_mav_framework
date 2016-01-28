@@ -94,7 +94,7 @@ int main(int argc, char ** argv)
 
   std::string port, portRX, portTX;
   int baudrate;
-  ros::NodeHandle pnh("~/fcu");
+  ros::NodeHandle pnh("~");
   CommPtr comm(new Comm);
 
   bool connected = false;

@@ -58,7 +58,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HLI_PACKET_ID_ACK                       0x11    ///< Acknowledge packet
 #define HLI_PACKET_ID_CONFIG                    0x12    ///< Acknowledge packet
 #define HLI_PACKET_ID_MAG                       0x13    ///< Magnetic compass data packet
-
+#define HLI_PACKET_ID_CAM_TRIGGER               0x14    ///< Camera trigger data packet
+#define HLI_PACKET_ID_CAM_TRIGGER_ONOFF         0x15    ///< Camera trigger on/off commands
 
 // flight mode defines for communication with LL processor ----------------------------------------------
 #define HLI_FLIGHTMODE_ACC                      0x01
@@ -81,6 +82,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HLI_DEFAULT_PERIOD_SSDK_DEBUG           200
 #define HLI_DEFAULT_PERIOD_RCDATA               100
 #define HLI_DEFAULT_PERIOD_EKF_STATE            0
+#define HLI_DEFAULT_PERIOD_CAM_TRIGGER          67
 
 // position control mode and state estimation defines
 #define HLI_MODE_STATE_ESTIMATION_OFF           0x01    ///< switches state estimation on the HL off
@@ -204,6 +206,15 @@ __attribute__((packed))
    *  2: motors on
    */
   int8_t motors;
+
+  /// Camera trigger status:
+  /**
+   * -1: camera trigger off
+   *  0: stop camera trigger
+   *  1: start camera trigger
+   *  2: camera trigger on
+   */
+  int8_t cam_trigger;
 
   /// total received packets
   uint32_t rx_packets;
@@ -337,6 +348,7 @@ __attribute__((packed))
   uint16_t mode_position_control;
   uint16_t position_control_axis_enable;
   uint16_t battery_warning_voltage;
+  uint16_t trigger_rate_cam;
 }HLI_CONFIG;
 
 /// packet for SSDK status
@@ -364,5 +376,23 @@ __attribute__((packed))
   int16_t z;
 }HLI_MAG;
 
+/// cam trigger packet
+typedef struct
+__attribute__((packed))
+{
+
+  /// timestamp in us; synchronized to host pc
+  int64_t timestamp;
+
+  /// frame counter
+  uint32_t frame_counter;
+} HLI_CAM_TRIGGER;
+
+typedef struct
+__attribute__((packed))
+{
+  /// 0: stop camera trigger, 1: start camera trigger
+  uint8_t cam_trigger;
+} HLI_CAM_TRIGGER_ONOFF;
 
 #endif

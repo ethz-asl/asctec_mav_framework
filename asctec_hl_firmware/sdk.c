@@ -69,6 +69,7 @@ short extPositionValid = 0;
 unsigned int cpuLoad = 0;
 unsigned int sdkCycleStartTime = 0;
 
+HLI_CAM_TRIGGER camTriggerData;
 HLI_IMU imuData;
 HLI_RCDATA rcData;
 HLI_GPS gpsData;
@@ -81,6 +82,7 @@ HLI_STATUS statusData;
 
 short motor_state = -1;
 short motor_state_count = 0;
+short cam_trigger_state = -1;
 unsigned int sdkLoops = 0;
 
 unsigned int ssdk_reset_state = 0;
@@ -127,6 +129,10 @@ PacketInfo *packetSubscription;
 HLI_CONFIG hli_config;
 PacketInfo *packetConfig;
 
+// camera trigger on/off packet
+HLI_CAM_TRIGGER_ONOFF camTriggerEnable;
+PacketInfo *packetCamTriggerEnable;
+
 // ######################################################################################
 
 void sdkInit(void)
@@ -142,6 +148,7 @@ void sdkInit(void)
   hli_config.mode_state_estimation = HLI_MODE_STATE_ESTIMATION_OFF;
   hli_config.position_control_axis_enable = 0;
   hli_config.battery_warning_voltage = BATTERY_WARNING_VOLTAGE;
+  hli_config.trigger_rate_cam = HLI_DEFAULT_PERIOD_CAM_TRIGGER;
 
   // set default packet rates
   subscription.imu = HLI_DEFAULT_PERIOD_IMU;
@@ -161,6 +168,7 @@ void sdkInit(void)
   packetBaudrate = registerPacket(HLI_PACKET_ID_BAUDRATE, &baudrate);
   packetSubscription = registerPacket(HLI_PACKET_ID_SUBSCRIPTION, &subscription);
   packetConfig = registerPacket(HLI_PACKET_ID_CONFIG, &hli_config);
+  packetCamTriggerEnable = registerPacket(HLI_PACKET_ID_CAM_TRIGGER_ONOFF, &camTriggerEnable);
 
   UART0_rxFlush();
   UART0_txFlush();
@@ -260,6 +268,13 @@ void SDK_mainloop(void)
     motor_state = motors.motors;
     motor_state_count = 0;
     packetMotors->updated = 0;
+  }
+
+  // check for camera trigger start/stop packet
+  if (packetCamTriggerEnable->updated)
+  {
+    cam_trigger_state = camTriggerEnable.cam_trigger;
+    packetCamTriggerEnable->updated = 0;
   }
 
   // check for new HL command packet
@@ -465,6 +480,40 @@ void SDK_mainloop(void)
 
   // ------------------------------------------------------------------------
 
+  // start/stop camera trigger ---------------------------------------------
+
+  switch(cam_trigger_state){
+    case 0:
+      cam_trigger_state = -1;
+      break;
+    case 1:
+      resetCamTrigger();
+      cam_trigger_state = 2;
+      break;
+  }
+
+  if (cam_trigger_state == 2)
+  {
+    if (checkCamTrigger(hli_config.trigger_rate_cam))
+    {
+      sendCamTriggerData();
+
+      // send IMU data if this is not sent in this loop iteration
+      // this is to ensure that IMU data is available for each image
+      if (!checkTxPeriod(subscription.imu))
+      {
+        sendImuData();
+      }
+
+      camTrigger(ON);
+    }
+    else
+    {
+      camTrigger(OFF);
+    }
+  }
+
+  // ------------------------------------------------------------------------
 
   // --- send data to UART 0 ------------------------------------------------
   if (checkTxPeriod(subscription.imu))
@@ -605,6 +654,8 @@ inline void sendStatus(void)
   else if (!(LL_1khz_attitude_data.status2 & 0x1))
     statusData.motors = -1;
 
+  statusData.cam_trigger = cam_trigger_state;
+
   statusData.debug1 = extPositionCmd.heading;//uart0_min_rx_buffer;
 //  statusData.debug2 = uart0_min_tx_buffer;
 
@@ -636,6 +687,14 @@ inline void sendMagData(void)
   mag_data.z = LL_1khz_attitude_data.mag_z;
 
   writePacket2Ringbuffer(HLI_PACKET_ID_MAG, (unsigned char*)&mag_data, sizeof(mag_data));
+}
+
+inline void sendCamTriggerData(void)
+{
+  camTriggerData.timestamp = timestamp;
+  camTriggerData.frame_counter = frame_counter;
+
+  writePacket2Ringbuffer(HLI_PACKET_ID_CAM_TRIGGER, (unsigned char*)&camTriggerData, sizeof(camTriggerData));
 }
 
 inline void synchronizeTime()
@@ -708,6 +767,14 @@ inline void watchdog(void)
 }
 
 inline int checkTxPeriod(uint16_t period)
+{
+  if (period == 0)
+    return 0;
+  else
+    return sdkLoops % period == 0;
+}
+
+inline int checkCamTrigger(uint16_t period)
 {
   if (period == 0)
     return 0;

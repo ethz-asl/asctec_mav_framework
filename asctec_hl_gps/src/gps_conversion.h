@@ -76,7 +76,12 @@ private:
 
   bool use_pressure_height_;
 
+//<<<<<<< HEAD
   std::unique_ptr<geodesy_ned::Ned> ned_;
+/*=======
+  static const double DEG2RAD;
+  const Eigen::Quaterniond Q_90_DEG;
+>>>>>>> ed720b49ea1cd602b75e823aa79c195c875b4e56*/
 
   void syncCallback(const sensor_msgs::NavSatFixConstPtr & gps, const asctec_hl_comm::mav_imuConstPtr & imu);
   void gpsCallback(const sensor_msgs::NavSatFixConstPtr & gps);

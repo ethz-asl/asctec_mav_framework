@@ -33,8 +33,10 @@ DAMAGE.
 //I/Os on P1
 #define CAMERA_FET	16	
 
-
+extern unsigned int frame_counter;
 
 extern void LED(unsigned char, unsigned char);
+extern void camTrigger(unsigned char);
+extern void resetCamTrigger(void);
 //extern void ledInit(void);
 

@@ -11,6 +11,8 @@ float32     cpu_load
 
 string      motor_status
 
+string      cam_trigger_status
+
 string      gps_status
 int32       gps_num_satellites 
 

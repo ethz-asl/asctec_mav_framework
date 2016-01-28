@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "comm.h"
 
 // message includes
+#include <asctec_hl_comm/CamTrigger.h>
 #include <asctec_hl_comm/mav_rcdata.h>
 #include <asctec_hl_comm/mav_ctrl.h>
 #include <asctec_hl_comm/mav_imu.h>
@@ -47,6 +48,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <geometry_msgs/Vector3Stamped.h>
 
 // service includes
+#include <asctec_hl_comm/CamTriggerSrv.h>
 #include <asctec_hl_comm/MavCtrlSrv.h>
 #include <asctec_hl_comm/mav_ctrl_motors.h>
 
@@ -82,10 +84,12 @@ private:
   ros::Publisher rc_pub_;
   ros::Publisher status_pub_;
   ros::Publisher mag_pub_;
+  ros::Publisher cam_trigger_pub_;
   ros::Subscriber control_sub_;
 
   ros::ServiceServer motor_srv_;
   ros::ServiceServer crtl_srv_;
+  ros::ServiceServer cam_trigger_srv_;
 
   // callback functions for data from the serial port
   void processImuData(uint8_t * buf, uint32_t bufLength);
@@ -95,12 +99,16 @@ private:
   void processTimeSyncData(uint8_t * buf, uint32_t bufLength);
   void processPoseEKFData(uint8_t * buf, uint32_t bufLength);
   void processMagData(uint8_t * buf, uint32_t bufLength);
+  void processCamTriggerData(uint8_t * buf, uint32_t bufLength);
 
   /// service to start/stop motors
   bool cbMotors(asctec_hl_comm::mav_ctrl_motors::Request &req, asctec_hl_comm::mav_ctrl_motors::Response &resp);
 
   /// ctrl service callback
   bool cbCtrl(asctec_hl_comm::MavCtrlSrv::Request & req, asctec_hl_comm::MavCtrlSrv::Response & resp);
+
+  /// service to start/stop camera trigger
+  bool cbCamTrigger(asctec_hl_comm::CamTriggerSrv::Request & req, asctec_hl_comm::CamTriggerSrv::Response & resp);
 
   /**
    * callback that listens to mav_ctrl messages

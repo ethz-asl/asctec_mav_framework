@@ -33,6 +33,7 @@ DAMAGE.
 #include "hardware.h"
 #include "irq.h"
 
+unsigned int frame_counter = 0;
 
 void LED(unsigned char nr, unsigned char onoff) //set or reset LED 0..3
 {
@@ -46,4 +47,25 @@ void LED(unsigned char nr, unsigned char onoff) //set or reset LED 0..3
   {
     IOCLR1 = (1<<(24+nr));
   }
+}
+
+void camTrigger(unsigned char onoff)
+{
+  if(onoff == OFF)
+  {
+    IOSET1 = 1<<16;
+  }
+  else
+  {
+    frame_counter++;
+
+    IOCLR1 = 1<<16;
+  }
+}
+
+void resetCamTrigger(void)
+{
+  frame_counter = 0;
+
+  IOSET1 = 1<<16;
 }
