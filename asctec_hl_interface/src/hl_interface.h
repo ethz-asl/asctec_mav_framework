@@ -37,14 +37,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "comm.h"
 
 // message includes
-#include <asctec_hl_comm/mav_rcdata.h>
-#include <asctec_hl_comm/mav_ctrl.h>
-#include <asctec_hl_comm/mav_imu.h>
-#include <asctec_hl_comm/mav_status.h>
 #include <asctec_hl_comm/GpsCustom.h>
+#include <asctec_hl_comm/mav_ctrl.h>
+#include <asctec_hl_comm/mav_rcdata.h>
+#include <asctec_hl_comm/mav_status.h>
+#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
-#include <geometry_msgs/Vector3Stamped.h>
+#include <sensor_msgs/Joy.h>
+
+
+#include <mav_msgs/RollPitchYawrateThrust.h>
+
 
 // service includes
 #include <asctec_hl_comm/MavCtrlSrv.h>
@@ -73,19 +78,25 @@ private:
   CommPtr & comm_;
 
   std::string frame_id_;
+  std::string mav_type_;
 
   ros::Publisher gps_pub_;
   ros::Publisher gps_custom_pub_;
   ros::Publisher imu_ros_pub_; ///< publisher for sensor_msgs/Imu message
-  ros::Publisher imu_pub_; ///< publisher for custom asctec_hl_comm/mav_imu message
   ros::Publisher motors_pub_; ///< publisher for motor message
+  ros::Publisher pressure_height_pub_;
   ros::Publisher rc_pub_;
+  ros::Publisher rc_joy_pub_;
   ros::Publisher status_pub_;
   ros::Publisher mag_pub_;
   ros::Subscriber control_sub_;
+  ros::Subscriber control_mav_comm_sub_;
+
 
   ros::ServiceServer motor_srv_;
   ros::ServiceServer crtl_srv_;
+
+  static const double kDefaultMaxRCChannelValue = 4080;
 
   // callback functions for data from the serial port
   void processImuData(uint8_t * buf, uint32_t bufLength);
@@ -107,6 +118,13 @@ private:
    * message must be sent at least at 10 Hz, otherwise the mav will switch back to manual control!
    **/
   void controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr &msg);
+
+  /**
+   * callback that listens to euroc mav_msgs messages
+   * message must be sent at least at 10 Hz, otherwise the mav will switch back to manual control!
+   **/
+
+  void controlCmdCallbackMavComm(const mav_msgs::RollPitchYawrateThrustConstPtr &msg);
 
   /// evaluates the mav_ctrl message and sends the appropriate commands to the HLP
   void sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_hl_comm::mav_ctrl * ctrl_result=NULL);

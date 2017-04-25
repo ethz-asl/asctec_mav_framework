@@ -43,19 +43,24 @@ HLInterface::HLInterface(ros::NodeHandle & nh, CommPtr & comm) :
   pnh_.param("k_stick_yaw", k_stick_yaw_, 120);
   pnh_.param("stddev_angular_velocity", angular_velocity_variance_, 0.013); // taken from experiments
   pnh_.param("stddev_linear_acceleration", linear_acceleration_variance_, 0.083); // taken from experiments
+  pnh_.param("mav_type", mav_type_, std::string("firefly"));
   angular_velocity_variance_ *= angular_velocity_variance_;
   linear_acceleration_variance_ *= linear_acceleration_variance_;
 
-  imu_pub_ = nh_.advertise<asctec_hl_comm::mav_imu> ("imu_custom", 1);
+  pressure_height_pub_ = nh_.advertise<geometry_msgs::PointStamped> ("pressure_height", 1);
   imu_ros_pub_ = nh_.advertise<sensor_msgs::Imu> ("imu", 1);
   motors_pub_ = nh_.advertise<asctec_hl_comm::MotorSpeed> ("motor_speed", 1);
   gps_pub_ = nh_.advertise<sensor_msgs::NavSatFix> ("gps", 1);
   gps_custom_pub_ = nh_.advertise<asctec_hl_comm::GpsCustom> ("gps_custom", 1);
   rc_pub_ = nh_.advertise<asctec_hl_comm::mav_rcdata> ("rcdata", 1);
+  rc_joy_pub_ = nh_.advertise<sensor_msgs::Joy>("rc", 1);
   status_pub_ = nh_.advertise<asctec_hl_comm::mav_status> ("status", 1);
   mag_pub_ = nh_.advertise<geometry_msgs::Vector3Stamped> ("mag", 1);
 
-  control_sub_ = nh_.subscribe("control", 1, &HLInterface::controlCmdCallback, this);
+  control_sub_ = nh_.subscribe("control", 1, &HLInterface::controlCmdCallback, this,
+   ros::TransportHints().tcpNoDelay());
+  control_mav_comm_sub_ = nh_.subscribe("command/roll_pitch_yawrate_thrust", 1, &HLInterface::controlCmdCallbackMavComm, this,
+   ros::TransportHints().tcpNoDelay());
 
   motor_srv_ = nh_.advertiseService("motor_control", &HLInterface::cbMotors, this);
   crtl_srv_ = nh_.advertiseService("control", &HLInterface::cbCtrl, this);
@@ -92,62 +97,47 @@ void HLInterface::processImuData(uint8_t * buf, uint32_t bufLength)
   static int seq = 0;
   diag_imu_freq_.tick();
 
-  double roll = helper::asctecAttitudeToSI(data->ang_roll);
-  double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
-  double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
-
-  if (yaw > M_PI)
-    yaw -= 2 * M_PI;
-
-  double height = data->height * 0.001;
-  double differential_height = data->differential_height * 0.001;
-
-  uint32_t subs_imu = imu_pub_.getNumSubscribers();
   uint32_t subs_imu_ros = imu_ros_pub_.getNumSubscribers();
 
-  if (subs_imu > 0 || subs_imu_ros > 0)
+  if (subs_imu_ros > 0)
   {
+    double roll = helper::asctecAttitudeToSI(data->ang_roll);
+    double pitch = helper::asctecAttitudeToSI(data->ang_pitch);
+    double yaw = helper::asctecAttitudeToSI(data->ang_yaw);
+
+    if (yaw > M_PI) {
+      yaw -= 2 * M_PI;
+    }
     geometry_msgs::Quaternion q;
     helper::angle2quaternion(roll, pitch, yaw, &q.w, &q.x, &q.y, &q.z);
 
-    if (subs_imu > 0)
-    {
-      asctec_hl_comm::mav_imuPtr msg(new asctec_hl_comm::mav_imu);
+    sensor_msgs::ImuPtr msg(new sensor_msgs::Imu);
 
-      msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
-      msg->header.seq = seq;
-      msg->header.frame_id = frame_id_;
-      msg->acceleration.x = helper::asctecAccToSI(data->acc_x);
-      msg->acceleration.y = helper::asctecAccToSI(data->acc_y);
-      msg->acceleration.z = helper::asctecAccToSI(data->acc_z);
-      msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
-      msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
-      msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
-      msg->differential_height = differential_height;
-      msg->height = height;
-      msg->orientation = q;
+    msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+    msg->header.seq = seq;
+    msg->header.frame_id = frame_id_;
+    msg->linear_acceleration.x = helper::asctecAccToSI(data->acc_x);
+    msg->linear_acceleration.y = helper::asctecAccToSI(data->acc_y);
+    msg->linear_acceleration.z = helper::asctecAccToSI(data->acc_z);
+    msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
+    msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
+    msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
+    msg->orientation = q;
+    helper::setDiagonalCovariance(msg->angular_velocity_covariance, angular_velocity_variance_);
+    helper::setDiagonalCovariance(msg->linear_acceleration_covariance, linear_acceleration_variance_);
 
-      imu_pub_.publish(msg);
-    }
-    if (subs_imu_ros > 0)
-    {
-      sensor_msgs::ImuPtr msg(new sensor_msgs::Imu);
+    imu_ros_pub_.publish(msg);
+  }
 
-      msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
-      msg->header.seq = seq;
-      msg->header.frame_id = frame_id_;
-      msg->linear_acceleration.x = helper::asctecAccToSI(data->acc_x);
-      msg->linear_acceleration.y = helper::asctecAccToSI(data->acc_y);
-      msg->linear_acceleration.z = helper::asctecAccToSI(data->acc_z);
-      msg->angular_velocity.x = helper::asctecOmegaToSI(data->ang_vel_roll);
-      msg->angular_velocity.y = helper::asctecOmegaToSI(data->ang_vel_pitch);
-      msg->angular_velocity.z = helper::asctecOmegaToSI(data->ang_vel_yaw);
-      msg->orientation = q;
-      helper::setDiagonalCovariance(msg->angular_velocity_covariance, angular_velocity_variance_);
-      helper::setDiagonalCovariance(msg->linear_acceleration_covariance, linear_acceleration_variance_);
-
-      imu_ros_pub_.publish(msg);
-    }
+  uint32_t subs_pressure_height = pressure_height_pub_.getNumSubscribers();
+  if (subs_pressure_height > 0) {
+    double height = data->height * 1.0e-3;
+    geometry_msgs::PointStampedPtr msg(new geometry_msgs::PointStamped);
+    msg->header.stamp = ros::Time(data->timestamp * 1.0e-6);
+    msg->header.seq = seq;
+    msg->header.frame_id = frame_id_;
+    msg->point.z = height;
+    pressure_height_pub_.publish(msg);
   }
 
   asctec_hl_comm::MotorSpeedPtr msg_motors (new asctec_hl_comm::MotorSpeed);
@@ -236,8 +226,44 @@ void HLInterface::processRcData(uint8_t * buf, uint32_t bufLength)
   for (size_t i = 0; i < n_channels; i++)
     msg->channel[i] = data->channel[i];
 
-  seq++;
+
   rc_pub_.publish(msg);
+
+  sensor_msgs::Joy joy_msg;
+  joy_msg.header.stamp = ros::Time(data->timestamp * 1.0e-6);
+  joy_msg.header.frame_id = frame_id_;
+  joy_msg.header.seq = seq;
+
+  /**********************************
+   *
+    channel[0]: right up-down
+    channel[1]: right side
+    channel[2]: left up-down
+    channel[3]: left side
+    channel[4]: enable/disable serial
+    channel[5]: flight mode (manual, altitude, position)
+    channel[6]: wheel
+  *
+  **********************************/
+  const double half_max_rc_channel = 0.5*kDefaultMaxRCChannelValue;
+
+  for (size_t i = 0; i < 7; i++) {
+    joy_msg.axes.push_back(
+        ((double) data->channel[i] - half_max_rc_channel) / (half_max_rc_channel));
+  }
+
+  //sign correction
+  joy_msg.axes.at(0) *= -1.0;
+  joy_msg.axes.at(1) *= -1.0;
+  joy_msg.axes.at(3) *= -1.0;  //yaw
+
+
+  //Assume RC always on! //todo(fmina) find a better way.
+  joy_msg.buttons.push_back(1);
+
+  rc_joy_pub_.publish(joy_msg);
+
+  seq++;
 }
 
 void HLInterface::processStatusData(uint8_t * buf, uint32_t bufLength)
@@ -487,6 +513,41 @@ void HLInterface::controlCmdCallback(const asctec_hl_comm::mav_ctrlConstPtr & ms
   sendControlCmd(*msg);
 }
 
+
+void HLInterface::controlCmdCallbackMavComm(const mav_msgs::RollPitchYawrateThrustConstPtr & msg)
+{
+  asctec_hl_comm::mav_ctrl msg_old;
+
+  msg_old.type = asctec_hl_comm::mav_ctrl::acceleration;
+  msg_old.x = - msg->pitch;
+  msg_old.y = - msg->roll;
+  double thrust = msg->thrust.z; //thrust in [N]
+  //mapping from thrust to asctec command [0 1] (for Firefly)
+  //TODO make polynomial coefficients as parameters
+  //msg_old.z = -0.000667*thrust*thrust + 0.0319*thrust + 0.233;
+  double throttle = 0.0;
+  if(mav_type_ == "hummingbird"){
+    throttle = thrust/16.0 + 0.1;
+  }else if(mav_type_ == "firefly"){
+    throttle = thrust/36.0 + 0.1;
+  }else{
+    ROS_ERROR("Unkown vehicle type...");
+    return;
+  }
+
+  if(throttle > 0.95)
+    throttle = 0.95;
+
+  if(throttle < 0)
+    throttle = 0;
+
+  msg_old.z = throttle;
+  msg_old.yaw = msg->yaw_rate;
+
+  sendControlCmd(msg_old);
+}
+
+
 bool HLInterface::cbCtrl(asctec_hl_comm::MavCtrlSrv::Request & req, asctec_hl_comm::MavCtrlSrv::Response & resp)
 {
   sendControlCmd(req.ctrl, &resp.ctrl_result);
@@ -499,7 +560,7 @@ void HLInterface::sendControlCmd(const asctec_hl_comm::mav_ctrl & ctrl, asctec_h
 
   if (ctrl.type == asctec_hl_comm::mav_ctrl::acceleration)
   {
-    if (config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_OFF)
+    if(config_.position_control == asctec_hl_interface::HLInterface_POSCTRL_OFF)
     {
       sendAccCommandLL(ctrl, ctrl_result);
       validCommand = true;
@@ -598,7 +659,7 @@ void HLInterface::sendAccCommandLL(const asctec_hl_comm::mav_ctrl & msg, asctec_
   // cmd=real_anglular_velocity*1000/k_stick_yaw,
   // cmd is limited to +- 1700 such that it's not possible to switch the motors with a bad command
   ctrlLL.yaw = helper::clamp<short>(-1700, 1700, (short)(msg.yaw * 180.0 / M_PI * 1000.0 / (float)k_stick_yaw_));
-
+  //std::cout << "k stick_yaw = " << k_stick_yaw_ << std::endl;
   // catch wrong thrust command ;-)
   if (msg.z > 1.0)
   {
@@ -814,5 +875,3 @@ void HLInterface::cbConfig(asctec_hl_interface::HLInterfaceConfig & config, uint
 
   config_ = config;
 }
-
-
