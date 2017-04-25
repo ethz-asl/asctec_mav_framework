@@ -16,7 +16,7 @@ cd usr/local/arm7/bin
 
 for i in * 
 do
-   sudo chmod a+x $i
+   chmod a+x $i
 done
 
 #export PATH=$PATH:/tmp/arm7-elf-gcc/usr/local/arm7/bin
