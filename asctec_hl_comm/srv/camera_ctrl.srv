@@ -1,0 +1,4 @@
+float32      camera_pitch_deg         # desired camera pitch angle (deg)
+float32      camera_roll_deg	  # desired camera roll angle  (deg)
+---
+bool	   result		# true if successfully sent the command to HLP

@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // service includes
 #include <asctec_hl_comm/MavCtrlSrv.h>
 #include <asctec_hl_comm/mav_ctrl_motors.h>
+#include <asctec_hl_comm/camera_ctrl.h>
 
 // dynamic reconfigure includes
 #include <dynamic_reconfigure/server.h>
@@ -86,6 +87,7 @@ private:
 
   ros::ServiceServer motor_srv_;
   ros::ServiceServer crtl_srv_;
+  ros::ServiceServer camera_srv;
 
   // callback functions for data from the serial port
   void processImuData(uint8_t * buf, uint32_t bufLength);
@@ -101,6 +103,9 @@ private:
 
   /// ctrl service callback
   bool cbCtrl(asctec_hl_comm::MavCtrlSrv::Request & req, asctec_hl_comm::MavCtrlSrv::Response & resp);
+
+  /// camera ctrl service callback
+  bool cbCameraCtrl(asctec_hl_comm::camera_ctrl::Request &req, asctec_hl_comm::camera_ctrl::Response &resp);
 
   /**
    * callback that listens to mav_ctrl messages

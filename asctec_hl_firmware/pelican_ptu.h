@@ -45,6 +45,8 @@ DAMAGE.
 
 void PTU_init(void);
 void PTU_update(void);
+void PTU_set_desired_pitch(int);
+void PTU_set_desired_roll(int);
 void SERVO_pitch_move(int);
 void SERVO_roll_move(int);
 

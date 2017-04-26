@@ -154,4 +154,13 @@ void SERVO_roll_move (int angle)
     PWMLER = LER5_EN|LER1_EN|LER2_EN;
 }
 
+void PTU_set_desired_pitch(int desired_pitch)
+{
+    CAMERA_Commands.desired_angle_pitch = desired_pitch;
+}
+
+void PTU_set_desired_roll(int desired_roll)
+{
+    CAMERA_Commands.desired_angle_roll = desired_roll;
+}
 

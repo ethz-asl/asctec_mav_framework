@@ -28,6 +28,7 @@ add_message_files(
 
 add_service_files(
   FILES
+  camera_ctrl.srv
   mav_ctrl_motors.srv
   MavCtrlSrv.srv
   Wgs84ToEnu.srv
